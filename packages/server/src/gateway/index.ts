@@ -191,6 +191,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         if (!player) throw Errors.playerNotFound();
         player.alive = false;
         broadcastGrimoire(io, session);
+        broadcastLobby(io, session);
         sendToPlayer(io, player, ServerEvents.PlayerSelfUpdate, { alive: false });
         store.touch(session);
       })
@@ -262,6 +263,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
           io.to(sessionRoom(session.code)).emit(ServerEvents.ExecutionConfirmed, { playerId: targetId });
         }
         broadcastGrimoire(io, session);
+        broadcastLobby(io, session);
         store.touch(session);
       })
     );

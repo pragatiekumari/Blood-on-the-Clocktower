@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createSession, joinSession } from '../api/rest.js';
 import { savePlayerSession, saveStorytellerSession } from '../api/storage.js';
 import { ApiError } from '../api/rest.js';
+
+const SLOW_REQUEST_MS = 4000;
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -10,10 +12,33 @@ export function HomePage() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [slow, setSlow] = useState(false);
+  const slowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function handleCreate() {
+  function startBusy() {
     setBusy(true);
     setError(null);
+    setSlow(false);
+    slowTimerRef.current = setTimeout(() => setSlow(true), SLOW_REQUEST_MS);
+  }
+
+  function stopBusy() {
+    setBusy(false);
+    setSlow(false);
+    if (slowTimerRef.current) {
+      clearTimeout(slowTimerRef.current);
+      slowTimerRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
+    };
+  }, []);
+
+  async function handleCreate() {
+    startBusy();
     try {
       const { code, storytellerToken } = await createSession();
       saveStorytellerSession(code, storytellerToken);
@@ -21,14 +46,13 @@ export function HomePage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create a game right now.');
     } finally {
-      setBusy(false);
+      stopBusy();
     }
   }
 
   async function handleJoin() {
     if (!joinCode.trim() || !displayName.trim()) return;
-    setBusy(true);
-    setError(null);
+    startBusy();
     try {
       const code = joinCode.trim().toUpperCase();
       const { playerId, playerToken } = await joinSession(code, displayName.trim());
@@ -37,7 +61,7 @@ export function HomePage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not join that game.');
     } finally {
-      setBusy(false);
+      stopBusy();
     }
   }
 
@@ -52,7 +76,7 @@ export function HomePage() {
         <h2 style={{ marginTop: 0 }}>Host a Game</h2>
         <p className="muted">Create a session and become the Storyteller.</p>
         <button className="btn btn-primary" disabled={busy} onClick={handleCreate}>
-          Create Game
+          {busy ? 'Creating…' : 'Create Game'}
         </button>
       </div>
 
@@ -74,10 +98,16 @@ export function HomePage() {
             maxLength={30}
           />
           <button className="btn btn-primary" disabled={busy} onClick={handleJoin}>
-            Join Game
+            {busy ? 'Joining…' : 'Join Game'}
           </button>
         </div>
       </div>
+
+      {busy && slow && (
+        <p className="faint" role="status">
+          Waking up the server — this can take up to a minute on the first request. Hang tight…
+        </p>
+      )}
 
       {error && (
         <p className="alignment-evil" role="alert">

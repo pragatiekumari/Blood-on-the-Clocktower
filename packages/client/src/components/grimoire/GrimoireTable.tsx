@@ -29,7 +29,9 @@ export function GrimoireTable({ grimoire, onToggleStatus, onMarkDead }: Grimoire
         <tbody>
           {grimoire.map((entry) => (
             <tr key={entry.playerId} style={{ borderBottom: '1px solid var(--border-subtle)', opacity: entry.alive ? 1 : 0.5 }}>
-              <td style={{ padding: 8 }}>{entry.displayName}</td>
+              <td style={{ padding: 8 }}>
+                <ConnectionDot connected={entry.connected} /> {entry.displayName}
+              </td>
               <td style={{ padding: 8 }}>{characterName(entry.character)}</td>
               <td style={{ padding: 8 }}>
                 <span className={entry.alignment === 'evil' ? 'alignment-evil' : 'alignment-good'}>
@@ -56,7 +58,9 @@ export function GrimoireTable({ grimoire, onToggleStatus, onMarkDead }: Grimoire
         {grimoire.map((entry) => (
           <div key={entry.playerId} className="panel" style={{ opacity: entry.alive ? 1 : 0.5 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <strong>{entry.displayName}</strong>
+              <strong>
+                <ConnectionDot connected={entry.connected} /> {entry.displayName}
+              </strong>
               <span className={entry.alignment === 'evil' ? 'alignment-evil' : 'alignment-good'}>{entry.alignment}</span>
             </div>
             <p className="muted" style={{ margin: '4px 0' }}>
@@ -72,6 +76,22 @@ export function GrimoireTable({ grimoire, onToggleStatus, onMarkDead }: Grimoire
         ))}
       </div>
     </>
+  );
+}
+
+function ConnectionDot({ connected }: { connected: boolean }) {
+  return (
+    <span
+      title={connected ? 'Connected' : 'Disconnected'}
+      aria-label={connected ? 'Connected' : 'Disconnected'}
+      style={{
+        display: 'inline-block',
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        background: connected ? 'var(--success)' : 'var(--danger)',
+      }}
+    />
   );
 }
 

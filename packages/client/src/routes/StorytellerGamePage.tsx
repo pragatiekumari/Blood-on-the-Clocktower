@@ -5,6 +5,7 @@ import type { SessionState } from '../hooks/useSession.js';
 import { GrimoireTable } from '../components/grimoire/GrimoireTable.js';
 import { NightOrderPanel } from '../components/grimoire/NightOrderPanel.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
+import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
 
 interface StorytellerGamePageProps {
   socket: Socket | null;
@@ -52,8 +53,14 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
     }
   }
 
+  const executedName = session.lastExecutedPlayerId
+    ? grimoire.find((g) => g.playerId === session.lastExecutedPlayerId)?.displayName
+    : undefined;
+
   return (
     <div className="app-shell">
+      <ExecutionBanner playerId={session.lastExecutedPlayerId} eventId={session.executionEventId} displayName={executedName} />
+
       <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ margin: 0 }}>Storyteller</h1>

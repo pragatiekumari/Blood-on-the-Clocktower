@@ -7,6 +7,7 @@ import { NominationBar } from '../components/voting/NominationBar.js';
 import { VoteTally } from '../components/voting/VoteTally.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
 import { RulesReferencePanel } from '../components/onboarding/RulesReferencePanel.js';
+import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
 
 interface PlayerGamePageProps {
   socket: Socket | null;
@@ -39,8 +40,14 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
     socket?.emit(ClientEvents.ChatEvilSend, { text });
   }
 
+  const executedName = session.lastExecutedPlayerId
+    ? session.lobbyPlayers.find((p) => p.playerId === session.lastExecutedPlayerId)?.displayName
+    : undefined;
+
   return (
     <div className="app-shell">
+      <ExecutionBanner playerId={session.lastExecutedPlayerId} eventId={session.executionEventId} displayName={executedName} />
+
       <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ margin: 0 }}>
@@ -112,9 +119,19 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
         <div>
           <div className="panel">
             <h3 style={{ marginTop: 0 }}>Players</h3>
-            <ul>
+            <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
               {session.lobbyPlayers.map((p) => (
-                <li key={p.playerId}>{p.displayName}</li>
+                <li
+                  key={p.playerId}
+                  style={{ opacity: p.alive ? 1 : 0.5, padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <span aria-hidden="true">{p.alive ? '●' : '💀'}</span>
+                  <span>
+                    {p.displayName}
+                    {p.playerId === selfPlayerId && <strong> (you)</strong>}
+                  </span>
+                  {!p.alive && <span className="faint">dead</span>}
+                </li>
               ))}
             </ul>
           </div>

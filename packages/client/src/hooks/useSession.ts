@@ -13,6 +13,7 @@ export interface LobbyPlayer {
   playerId: string;
   displayName: string;
   connected: boolean;
+  alive: boolean;
 }
 
 export interface ChatMessageView {
@@ -31,6 +32,7 @@ export interface SessionState {
   grimoire: GrimoirePlayerEntry[] | null;
   nomination: ActiveNominationView | null;
   lastExecutedPlayerId: string | null;
+  executionEventId: number;
   chatMessages: ChatMessageView[];
   storytellerConnected: boolean;
   abilityResult: string | null;
@@ -47,6 +49,7 @@ const initialState: SessionState = {
   grimoire: null,
   nomination: null,
   lastExecutedPlayerId: null,
+  executionEventId: 0,
   chatMessages: [],
   storytellerConnected: true,
   abilityResult: null,
@@ -96,7 +99,7 @@ export function useSession(socket: Socket | null): SessionState {
       setState((s) => ({ ...s, nomination: payload }));
     };
     const onExecutionConfirmed = (payload: { playerId: string }) => {
-      setState((s) => ({ ...s, lastExecutedPlayerId: payload.playerId }));
+      setState((s) => ({ ...s, lastExecutedPlayerId: payload.playerId, executionEventId: s.executionEventId + 1 }));
     };
     const onChatMessage = (payload: ChatMessageView) => {
       setState((s) => ({ ...s, chatMessages: [...s.chatMessages, payload] }));

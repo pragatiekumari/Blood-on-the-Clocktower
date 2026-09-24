@@ -52,6 +52,7 @@ export function broadcastLobby(io: SocketIOServer, session: GameSession): void {
     playerId: p.playerId,
     displayName: p.displayName,
     connected: p.connectionId !== null,
+    alive: p.alive,
   }));
   io.to(sessionRoom(session.code)).emit(ServerEvents.LobbyUpdate, { players });
 }
