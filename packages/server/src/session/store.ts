@@ -16,6 +16,8 @@ export interface PlayerRecord {
   statusEffects: StatusEffects;
   hasNominatedToday: boolean;
   onboardingSeen: boolean;
+  /** Position around the seating circle, 0-indexed clockwise. Defaults to join order. */
+  seatIndex: number;
 }
 
 export interface ActiveNomination {
@@ -113,6 +115,7 @@ export class SessionStore {
       statusEffects: { poisoned: false, drunk: false, protected: false },
       hasNominatedToday: false,
       onboardingSeen: false,
+      seatIndex: session.players.size,
     };
     session.players.set(playerId, record);
     return record;
@@ -145,4 +148,32 @@ export function livingPlayerCount(session: GameSession): number {
 
 export function evilPlayers(session: GameSession): PlayerRecord[] {
   return [...session.players.values()].filter((p) => p.alignment === 'evil');
+}
+
+export function playersBySeat(session: GameSession): PlayerRecord[] {
+  return [...session.players.values()].sort((a, b) => a.seatIndex - b.seatIndex);
+}
+
+/**
+ * Reassigns seatIndex for every player based on the given ordered list of
+ * playerIds (the new clockwise order). playerIds not present in the session
+ * are ignored; players missing from the list keep their relative order,
+ * appended after the reordered ones.
+ */
+export function reorderSeats(session: GameSession, orderedPlayerIds: string[]): void {
+  let index = 0;
+  const seen = new Set<string>();
+  for (const playerId of orderedPlayerIds) {
+    const player = session.players.get(playerId);
+    if (!player || seen.has(playerId)) continue;
+    player.seatIndex = index;
+    index += 1;
+    seen.add(playerId);
+  }
+  for (const player of playersBySeat(session)) {
+    if (!seen.has(player.playerId)) {
+      player.seatIndex = index;
+      index += 1;
+    }
+  }
 }

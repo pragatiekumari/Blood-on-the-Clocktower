@@ -13,6 +13,8 @@ export interface LobbyPlayerSummary {
   playerId: string;
   displayName: string;
   connected: boolean;
+  /** Position around the seating circle, 0-indexed clockwise. Public info — seating is visible to everyone. */
+  seatIndex: number;
 }
 
 /** Full Grimoire entry — Storyteller-only. */
@@ -26,6 +28,7 @@ export interface GrimoirePlayerEntry {
   statusEffects: StatusEffects;
   usedDeadVote: boolean;
   connected: boolean;
+  seatIndex: number;
 }
 
 /** What a single player's own client receives about themself. */

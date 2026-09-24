@@ -6,6 +6,7 @@ import { GrimoireTable } from '../components/grimoire/GrimoireTable.js';
 import { NightOrderPanel } from '../components/grimoire/NightOrderPanel.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
+import { SeatingCircle } from '../components/seating/SeatingCircle.js';
 
 interface StorytellerGamePageProps {
   socket: Socket | null;
@@ -53,6 +54,17 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
     }
   }
 
+  function moveSeat(playerId: string, direction: 'left' | 'right') {
+    const seated = [...grimoire].sort((a, b) => a.seatIndex - b.seatIndex);
+    const index = seated.findIndex((p) => p.playerId === playerId);
+    if (index === -1) return;
+    const swapWith = direction === 'right' ? index + 1 : index - 1;
+    const wrapped = (swapWith + seated.length) % seated.length;
+    const reordered = [...seated];
+    [reordered[index], reordered[wrapped]] = [reordered[wrapped]!, reordered[index]!];
+    socket?.emit(ClientEvents.StorytellerReorderSeats, { orderedPlayerIds: reordered.map((p) => p.playerId) });
+  }
+
   const executedName = session.lastExecutedPlayerId
     ? grimoire.find((g) => g.playerId === session.lastExecutedPlayerId)?.displayName
     : undefined;
@@ -71,6 +83,14 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
         <button className="btn btn-inline btn-primary" onClick={togglePhase}>
           Switch to {session.phase === 'day' ? 'Night' : 'Day'}
         </button>
+      </div>
+
+      <div className="panel">
+        <h2 style={{ marginTop: 0, textAlign: 'center' }}>Seating Circle</h2>
+        <p className="faint" style={{ textAlign: 'center', marginTop: -8 }}>
+          Use ↺ / ↻ to swap a player with their neighbor.
+        </p>
+        <SeatingCircle players={grimoire} onMoveSeat={moveSeat} />
       </div>
 
       <div className="panel">

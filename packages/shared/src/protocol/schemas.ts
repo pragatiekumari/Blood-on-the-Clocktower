@@ -52,6 +52,10 @@ export const SetPlayerAlignmentSchema = z.object({
   alignment: z.enum(['good', 'evil']),
 });
 
+export const ReorderSeatsSchema = z.object({
+  orderedPlayerIds: z.array(z.string().min(1)).min(1),
+});
+
 export const CreateSessionRequestSchema = z.object({});
 
 export const JoinSessionRequestSchema = z.object({

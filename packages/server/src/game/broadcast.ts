@@ -1,6 +1,7 @@
 import type { Server as SocketIOServer } from 'socket.io';
 import { ServerEvents, type GrimoirePlayerEntry } from '@clocktower/shared';
 import type { GameSession, PlayerRecord } from '../session/store.js';
+import { playersBySeat } from '../session/store.js';
 
 export const STORYTELLER_SOCKET_KEY = '__storyteller__';
 
@@ -30,7 +31,7 @@ export function sendToStoryteller(io: SocketIOServer, session: GameSession, even
 }
 
 export function buildGrimoire(session: GameSession): GrimoirePlayerEntry[] {
-  return [...session.players.values()].map((p) => ({
+  return playersBySeat(session).map((p) => ({
     playerId: p.playerId,
     displayName: p.displayName,
     character: p.character,
@@ -40,6 +41,7 @@ export function buildGrimoire(session: GameSession): GrimoirePlayerEntry[] {
     statusEffects: p.statusEffects,
     usedDeadVote: p.usedDeadVote,
     connected: p.connectionId !== null,
+    seatIndex: p.seatIndex,
   }));
 }
 
@@ -48,11 +50,12 @@ export function broadcastGrimoire(io: SocketIOServer, session: GameSession): voi
 }
 
 export function broadcastLobby(io: SocketIOServer, session: GameSession): void {
-  const players = [...session.players.values()].map((p) => ({
+  const players = playersBySeat(session).map((p) => ({
     playerId: p.playerId,
     displayName: p.displayName,
     connected: p.connectionId !== null,
     alive: p.alive,
+    seatIndex: p.seatIndex,
   }));
   io.to(sessionRoom(session.code)).emit(ServerEvents.LobbyUpdate, { players });
 }

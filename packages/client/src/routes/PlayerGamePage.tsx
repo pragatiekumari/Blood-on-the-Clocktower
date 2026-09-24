@@ -8,6 +8,17 @@ import { VoteTally } from '../components/voting/VoteTally.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
 import { RulesReferencePanel } from '../components/onboarding/RulesReferencePanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
+import { SeatingCircle } from '../components/seating/SeatingCircle.js';
+import type { LobbyPlayer } from '../hooks/useSession.js';
+
+function SeatingCirclePanel({ players, selfPlayerId }: { players: LobbyPlayer[]; selfPlayerId: string }) {
+  return (
+    <div className="panel">
+      <h3 style={{ marginTop: 0, textAlign: 'center' }}>Seating Circle</h3>
+      <SeatingCircle players={players} selfPlayerId={selfPlayerId} />
+    </div>
+  );
+}
 
 interface PlayerGamePageProps {
   socket: Socket | null;
@@ -20,6 +31,7 @@ type Tab = 'character' | 'town' | 'chat';
 export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePageProps) {
   const [tab, setTab] = useState<Tab>('character');
   const [showRules, setShowRules] = useState(false);
+  const [showSeating, setShowSeating] = useState(false);
 
   const distribution = session.distribution;
   const isEvil = distribution?.role === 'player' && distribution.alignment === 'evil';
@@ -55,9 +67,14 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
           </h1>
           {!session.alive && <p className="alignment-evil" style={{ margin: 0 }}>You are dead. You may still vote once.</p>}
         </div>
-        <button className="btn btn-inline" onClick={() => setShowRules(true)}>
-          Rules
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-inline" onClick={() => setShowSeating(true)}>
+            🪑 Seating
+          </button>
+          <button className="btn btn-inline" onClick={() => setShowRules(true)}>
+            Rules
+          </button>
+        </div>
       </div>
 
       <div className="tab-bar">
@@ -117,24 +134,7 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
 
       {tab === 'town' && (
         <div>
-          <div className="panel">
-            <h3 style={{ marginTop: 0 }}>Players</h3>
-            <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
-              {session.lobbyPlayers.map((p) => (
-                <li
-                  key={p.playerId}
-                  style={{ opacity: p.alive ? 1 : 0.5, padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}
-                >
-                  <span aria-hidden="true">{p.alive ? '●' : '💀'}</span>
-                  <span>
-                    {p.displayName}
-                    {p.playerId === selfPlayerId && <strong> (you)</strong>}
-                  </span>
-                  {!p.alive && <span className="faint">dead</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <SeatingCirclePanel players={session.lobbyPlayers} selfPlayerId={selfPlayerId} />
           {session.nomination ? (
             <VoteTally
               nomination={session.nomination}
@@ -178,6 +178,31 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
           characterName={distribution?.role === 'player' ? distribution.characterName : undefined}
           ability={distribution?.role === 'player' ? distribution.ability : undefined}
         />
+      )}
+
+      {showSeating && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5,5,8,0.82)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 500,
+            padding: 16,
+          }}
+        >
+          <div className="panel modal-panel" style={{ maxWidth: 360 }}>
+            <h2 style={{ textAlign: 'center', marginTop: 0 }}>Seating Circle</h2>
+            <SeatingCircle players={session.lobbyPlayers} selfPlayerId={selfPlayerId} />
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowSeating(false)}>
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ export const ClientEvents = {
   StorytellerMarkDead: 'storyteller:markDead',
   StorytellerShareAbilityResult: 'storyteller:shareAbilityResult',
   StorytellerSetPlayerAlignment: 'storyteller:setPlayerAlignment',
+  StorytellerReorderSeats: 'storyteller:reorderSeats',
   PlayerNominate: 'player:nominate',
   PlayerVote: 'player:vote',
   StorytellerCloseVote: 'storyteller:closeVote',

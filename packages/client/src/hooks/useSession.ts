@@ -14,6 +14,7 @@ export interface LobbyPlayer {
   displayName: string;
   connected: boolean;
   alive: boolean;
+  seatIndex: number;
 }
 
 export interface ChatMessageView {

@@ -13,6 +13,7 @@ function makeEntry(overrides: Partial<GrimoirePlayerEntry>): GrimoirePlayerEntry
     statusEffects: overrides.statusEffects ?? { poisoned: false, drunk: false, protected: false },
     usedDeadVote: overrides.usedDeadVote ?? false,
     connected: overrides.connected ?? true,
+    seatIndex: overrides.seatIndex ?? 0,
   };
 }
 

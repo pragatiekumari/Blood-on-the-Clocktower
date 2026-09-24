@@ -9,6 +9,7 @@ import {
   NominateSchema,
   ServerEvents,
   ClientEvents,
+  ReorderSeatsSchema,
   SetPhaseSchema,
   SetPlayerAlignmentSchema,
   SetPlayerStatusSchema,
@@ -17,6 +18,7 @@ import {
   MIN_PLAYERS,
 } from '@clocktower/shared';
 import type { SessionStore, GameSession, PlayerRecord } from '../session/store.js';
+import { reorderSeats } from '../session/store.js';
 import { syncEvilRoomMembership, sendEvilHistoryTo, sendEvilMessage } from '../game/chat.js';
 import { distributeRoles, resetDistribution, buildPlayerDistributionPayload } from '../game/distribution.js';
 import {
@@ -219,6 +221,17 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         broadcastGrimoire(io, session);
         const payload = player.character ? buildPlayerDistributionPayload(session, player) : null;
         if (payload) sendToPlayer(io, player, ServerEvents.GameDistributed, payload);
+        store.touch(session);
+      })
+    );
+
+    socket.on(ClientEvents.StorytellerReorderSeats, (raw: unknown) =>
+      guarded(io, socket, () => {
+        const session = requireStoryteller(socket);
+        const { orderedPlayerIds } = ReorderSeatsSchema.parse(raw);
+        reorderSeats(session, orderedPlayerIds);
+        broadcastGrimoire(io, session);
+        broadcastLobby(io, session);
         store.touch(session);
       })
     );
