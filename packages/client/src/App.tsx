@@ -7,6 +7,7 @@ import { PlayerGamePage } from './routes/PlayerGamePage.js';
 import { useGameSocket } from './hooks/useGameSocket.js';
 import { useSession } from './hooks/useSession.js';
 import { ErrorToast } from './components/shared/ErrorToast.js';
+import { ConnectionBanner } from './components/shared/ConnectionBanner.js';
 import { OnboardingModal } from './components/onboarding/OnboardingModal.js';
 import { getStoredSession, hasSeenOnboarding, markOnboardingSeen } from './api/storage.js';
 
@@ -14,13 +15,14 @@ function StorytellerRoute() {
   const { code } = useParams();
   const stored = getStoredSession();
   const token = stored.storytellerToken && stored.code === code ? stored.storytellerToken : null;
-  const { socket } = useGameSocket(token);
+  const { socket, status } = useGameSocket(token);
   const session = useSession(socket);
 
   if (!token) return <Navigate to="/" replace />;
 
   return (
     <>
+      <ConnectionBanner status={status} />
       {session.phase === 'lobby' ? (
         <LobbyPage code={code ?? ''} socket={socket} session={session} isStoryteller />
       ) : (
@@ -35,7 +37,7 @@ function PlayerRoute() {
   const { code } = useParams();
   const stored = getStoredSession();
   const validToken = stored.playerToken && stored.code === code ? stored.playerToken : null;
-  const { socket } = useGameSocket(validToken);
+  const { socket, status } = useGameSocket(validToken);
   const session = useSession(socket);
   const [showOnboarding, setShowOnboarding] = useState(!hasSeenOnboarding());
 
@@ -51,6 +53,7 @@ function PlayerRoute() {
 
   return (
     <>
+      <ConnectionBanner status={status} />
       {session.phase === 'lobby' ? (
         <LobbyPage code={code ?? ''} socket={socket} session={session} isStoryteller={false} />
       ) : (

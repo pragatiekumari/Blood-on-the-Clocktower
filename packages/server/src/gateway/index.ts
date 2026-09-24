@@ -128,6 +128,14 @@ function broadcastDistribution(io: SocketIOServer, session: GameSession): void {
 
 export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore): void {
   io.on('connection', (socket) => {
+    // Lightweight keep-alive: no auth required, just touches the session
+    // (if this socket is already authenticated) so idle-but-open connections
+    // don't get recycled by hosting-platform idle timeouts.
+    socket.on('ping', () => {
+      const identity = getState(socket).identity;
+      if (identity) store.touch(identity.session);
+    });
+
     socket.on(ClientEvents.Auth, (raw: unknown) =>
       guarded(io, socket, () => {
         const parsed = AuthPayloadSchema.parse(raw);
