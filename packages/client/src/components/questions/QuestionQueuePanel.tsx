@@ -3,20 +3,20 @@ import type { QuestionEntryView } from '@clocktower/shared';
 
 interface QuestionQueuePanelProps {
   questions: QuestionEntryView[];
-  selfPlayerId: string;
   onAsk: (text: string) => void;
   canAsk: boolean;
 }
 
 /**
- * Player-facing view of the post-night question queue: submit a question and
- * see the full queue (who's asked what, and answers so far). Evil players'
- * questions are already ordered first by the server — this just renders
- * whatever order the server sends.
+ * Player-facing view of the post-night question flow. Questions are
+ * private: this player only ever receives their OWN questions and answers
+ * from the server, never anyone else's — the Storyteller answers privately,
+ * and it's up to the player to repeat it aloud during discussion if they
+ * choose to. There is no visibility into other players' queue position,
+ * since that would leak who else has asked something.
  */
-export function QuestionQueuePanel({ questions, selfPlayerId, onAsk, canAsk }: QuestionQueuePanelProps) {
+export function QuestionQueuePanel({ questions, onAsk, canAsk }: QuestionQueuePanelProps) {
   const [text, setText] = useState('');
-  const activeIndex = questions.findIndex((q) => !q.answered);
 
   function submit() {
     if (!text.trim()) return;
@@ -27,6 +27,9 @@ export function QuestionQueuePanel({ questions, selfPlayerId, onAsk, canAsk }: Q
   return (
     <div className="panel">
       <h3 style={{ marginTop: 0 }}>Ask the Storyteller</h3>
+      <p className="faint" style={{ marginTop: -4 }}>
+        This is private between you and the Storyteller. Share it with the group yourself if you want to.
+      </p>
       {!canAsk && <p className="faint">Questions can be asked during the day, after night ends.</p>}
       <div style={{ display: 'flex', gap: 8 }}>
         <input
@@ -47,34 +50,25 @@ export function QuestionQueuePanel({ questions, selfPlayerId, onAsk, canAsk }: Q
 
       {questions.length > 0 && (
         <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {questions.map((q, i) => (
+          {questions.map((q) => (
             <div
               key={q.questionId}
               className="panel"
               style={{
                 padding: 12,
-                borderColor: i === activeIndex ? 'var(--accent-gold)' : undefined,
-                opacity: q.answered || i === activeIndex ? 1 : 0.55,
+                borderColor: !q.answered ? 'var(--accent-gold)' : undefined,
               }}
             >
               <p style={{ margin: 0 }}>
-                <strong>
-                  {q.playerName}
-                  {q.playerId === selfPlayerId && ' (you)'}:
-                </strong>{' '}
-                {q.text}
+                <strong>You asked:</strong> {q.text}
               </p>
               {q.answered ? (
                 <p className="muted" style={{ margin: '6px 0 0' }}>
                   <strong>Storyteller:</strong> {q.answer}
                 </p>
-              ) : i === activeIndex ? (
-                <p className="faint" style={{ margin: '6px 0 0' }}>
-                  Waiting for the Storyteller to answer…
-                </p>
               ) : (
                 <p className="faint" style={{ margin: '6px 0 0' }}>
-                  Queued
+                  Waiting for the Storyteller to answer…
                 </p>
               )}
             </div>

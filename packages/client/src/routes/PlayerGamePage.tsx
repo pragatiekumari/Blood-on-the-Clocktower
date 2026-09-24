@@ -173,7 +173,6 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
       {tab === 'questions' && (
         <QuestionQueuePanel
           questions={session.questionQueue}
-          selfPlayerId={selfPlayerId}
           canAsk={session.phase === 'day'}
           onAsk={askQuestion}
         />

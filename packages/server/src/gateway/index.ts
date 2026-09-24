@@ -108,10 +108,22 @@ function toQuestionView(q: QuestionEntry): QuestionEntryView {
   };
 }
 
-function broadcastQuestionQueue(io: SocketIOServer, session: GameSession): void {
-  io.to(sessionRoom(session.code)).emit(ServerEvents.QuestionQueueUpdate, {
+/**
+ * Questions are private: only the Storyteller (full queue, so they can
+ * answer in the correct Evil-first order) and the asking player themselves
+ * (their own questions only) see them. Other players never see anyone
+ * else's question or answer unless that player chooses to repeat it aloud
+ * during discussion — that's a conversation the app doesn't need to
+ * mediate, so nothing is broadcast to the room.
+ */
+function sendQuestionQueueUpdates(io: SocketIOServer, session: GameSession): void {
+  sendToStoryteller(io, session, ServerEvents.QuestionQueueUpdate, {
     questions: session.questionQueue.map(toQuestionView),
   });
+  for (const player of session.players.values()) {
+    const own = session.questionQueue.filter((q) => q.playerId === player.playerId).map(toQuestionView);
+    sendToPlayer(io, player, ServerEvents.QuestionQueueUpdate, { questions: own });
+  }
 }
 
 function broadcastDistribution(io: SocketIOServer, session: GameSession): void {
@@ -161,9 +173,16 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
           dayNumber: identity.session.dayNumber,
           phaseEndsAt: identity.session.phaseEndsAt,
         });
-        socket.emit(ServerEvents.QuestionQueueUpdate, {
-          questions: identity.session.questionQueue.map(toQuestionView),
-        });
+        if (identity.isStoryteller) {
+          socket.emit(ServerEvents.QuestionQueueUpdate, {
+            questions: identity.session.questionQueue.map(toQuestionView),
+          });
+        } else if (identity.player) {
+          const own = identity.session.questionQueue
+            .filter((q) => q.playerId === identity.player!.playerId)
+            .map(toQuestionView);
+          socket.emit(ServerEvents.QuestionQueueUpdate, { questions: own });
+        }
         broadcastLobby(io, identity.session);
         store.touch(identity.session);
       })
@@ -209,7 +228,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         session.phaseEndsAt = timerSeconds ? Date.now() + timerSeconds * 1000 : null;
         broadcastPhaseChanged(io, session);
         broadcastGrimoire(io, session);
-        broadcastQuestionQueue(io, session);
+        sendQuestionQueueUpdates(io, session);
         store.touch(session);
       })
     );
@@ -346,7 +365,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         const { session, player } = requirePlayer(socket);
         const { text } = AskQuestionSchema.parse(raw);
         askQuestion(session, player.playerId, text);
-        broadcastQuestionQueue(io, session);
+        sendQuestionQueueUpdates(io, session);
         store.touch(session);
       })
     );
@@ -356,7 +375,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         const session = requireStoryteller(socket);
         const { questionId, answer } = AnswerQuestionSchema.parse(raw);
         answerQuestion(session, questionId, answer);
-        broadcastQuestionQueue(io, session);
+        sendQuestionQueueUpdates(io, session);
         store.touch(session);
       })
     );
