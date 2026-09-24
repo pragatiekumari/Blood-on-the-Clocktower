@@ -9,6 +9,10 @@ import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
 import { RulesReferencePanel } from '../components/onboarding/RulesReferencePanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
 import { SeatingCircle } from '../components/seating/SeatingCircle.js';
+import { Graveyard } from '../components/seating/Graveyard.js';
+import { PhaseTimer } from '../components/shared/PhaseTimer.js';
+import { QuestionQueuePanel } from '../components/questions/QuestionQueuePanel.js';
+import { RoleReferenceSection } from '../components/reference/RoleReferenceSection.js';
 import type { LobbyPlayer } from '../hooks/useSession.js';
 
 function SeatingCirclePanel({ players, selfPlayerId }: { players: LobbyPlayer[]; selfPlayerId: string }) {
@@ -16,6 +20,7 @@ function SeatingCirclePanel({ players, selfPlayerId }: { players: LobbyPlayer[];
     <div className="panel">
       <h3 style={{ marginTop: 0, textAlign: 'center' }}>Seating Circle</h3>
       <SeatingCircle players={players} selfPlayerId={selfPlayerId} />
+      <Graveyard players={players} />
     </div>
   );
 }
@@ -26,12 +31,13 @@ interface PlayerGamePageProps {
   selfPlayerId: string;
 }
 
-type Tab = 'character' | 'town' | 'chat';
+type Tab = 'character' | 'town' | 'questions' | 'chat';
 
 export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePageProps) {
   const [tab, setTab] = useState<Tab>('character');
   const [showRules, setShowRules] = useState(false);
   const [showSeating, setShowSeating] = useState(false);
+  const [showRoles, setShowRoles] = useState(false);
 
   const distribution = session.distribution;
   const isEvil = distribution?.role === 'player' && distribution.alignment === 'evil';
@@ -52,6 +58,10 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
     socket?.emit(ClientEvents.ChatEvilSend, { text });
   }
 
+  function askQuestion(text: string) {
+    socket?.emit(ClientEvents.PlayerAskQuestion, { text });
+  }
+
   const executedName = session.lastExecutedPlayerId
     ? session.lobbyPlayers.find((p) => p.playerId === session.lastExecutedPlayerId)?.displayName
     : undefined;
@@ -60,16 +70,19 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
     <div className="app-shell">
       <ExecutionBanner playerId={session.lastExecutedPlayerId} eventId={session.executionEventId} displayName={executedName} />
 
-      <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+      <div className="panel" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>
             {session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
           </h1>
           {!session.alive && <p className="alignment-evil" style={{ margin: 0 }}>You are dead. You may still vote once.</p>}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-inline" onClick={() => setShowSeating(true)}>
             🪑 Seating
+          </button>
+          <button className="btn btn-inline" onClick={() => setShowRoles(true)}>
+            📜 Roles
           </button>
           <button className="btn btn-inline" onClick={() => setShowRules(true)}>
             Rules
@@ -77,12 +90,17 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
         </div>
       </div>
 
+      <PhaseTimer phaseEndsAt={session.phaseEndsAt} phase={session.phase} />
+
       <div className="tab-bar">
         <button className={tab === 'character' ? 'active' : ''} onClick={() => setTab('character')}>
           My Character
         </button>
         <button className={tab === 'town' ? 'active' : ''} onClick={() => setTab('town')}>
           Town Square
+        </button>
+        <button className={tab === 'questions' ? 'active' : ''} onClick={() => setTab('questions')}>
+          Questions
         </button>
         {isEvil && (
           <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>
@@ -119,14 +137,12 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
               </ul>
             </div>
           )}
-          {isEvil && distribution.bluffs && distribution.bluffs.length > 0 && (
+          {isEvil && distribution.bluff && (
             <div className="panel">
-              <h3 style={{ marginTop: 0 }}>Bluffs (Not In Play)</h3>
-              <ul>
-                {distribution.bluffs.map((b) => (
-                  <li key={b.id}>{b.name}</li>
-                ))}
-              </ul>
+              <h3 style={{ marginTop: 0 }}>Your Bluff (Not In Play)</h3>
+              <p className="muted" style={{ margin: 0 }}>
+                If asked, you may claim to be the <strong>{distribution.bluff.name}</strong>.
+              </p>
             </div>
           )}
         </div>
@@ -154,16 +170,28 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
         </div>
       )}
 
+      {tab === 'questions' && (
+        <QuestionQueuePanel
+          questions={session.questionQueue}
+          selfPlayerId={selfPlayerId}
+          canAsk={session.phase === 'day'}
+          onAsk={askQuestion}
+        />
+      )}
+
       {tab === 'chat' && isEvil && (
         <EvilChatPanel messages={session.chatMessages} selfPlayerId={selfPlayerId} onSend={sendChat} />
       )}
 
       <div className="bottom-tab-bar">
         <button className={tab === 'character' ? 'active' : ''} onClick={() => setTab('character')}>
-          Character
+          You
         </button>
         <button className={tab === 'town' ? 'active' : ''} onClick={() => setTab('town')}>
           Town
+        </button>
+        <button className={tab === 'questions' ? 'active' : ''} onClick={() => setTab('questions')}>
+          Q&A
         </button>
         {isEvil && (
           <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>
@@ -198,12 +226,15 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
           <div className="panel modal-panel" style={{ maxWidth: 360 }}>
             <h2 style={{ textAlign: 'center', marginTop: 0 }}>Seating Circle</h2>
             <SeatingCircle players={session.lobbyPlayers} selfPlayerId={selfPlayerId} />
+            <Graveyard players={session.lobbyPlayers} />
             <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowSeating(false)}>
               Close
             </button>
           </div>
         </div>
       )}
+
+      {showRoles && <RoleReferenceSection onClose={() => setShowRoles(false)} />}
     </div>
   );
 }

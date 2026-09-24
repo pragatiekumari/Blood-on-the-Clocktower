@@ -29,6 +29,9 @@ export interface GrimoirePlayerEntry {
   usedDeadVote: boolean;
   connected: boolean;
   seatIndex: number;
+  /** Nearest living neighbor in each direction around the fixed seating circle (null if none/only player). */
+  livingLeftNeighborId: string | null;
+  livingRightNeighborId: string | null;
 }
 
 /** What a single player's own client receives about themself. */
@@ -41,7 +44,8 @@ export interface OwnCharacterPayload {
   alignment: Alignment;
   ability: string;
   teammates?: { playerId: string; displayName: string; character: string; characterName: string }[];
-  bluffs?: { id: string; name: string }[];
+  /** The one fixed bluff character (not in this game) an Evil player can claim to be. Stable for the whole game. */
+  bluff?: { id: string; name: string };
 }
 
 export interface StorytellerDistributionPayload {
@@ -63,4 +67,15 @@ export interface ActiveNominationView {
   votes: NominationVote[];
   closed: boolean;
   pendingExecution: boolean;
+}
+
+/** A single entry in the post-night question queue (public — who asked and the answer are visible to all). */
+export interface QuestionEntryView {
+  questionId: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  answer: string | null;
+  answered: boolean;
+  askedAt: number;
 }

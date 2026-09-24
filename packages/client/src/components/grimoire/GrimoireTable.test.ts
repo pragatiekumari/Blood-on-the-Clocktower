@@ -14,6 +14,8 @@ function makeEntry(overrides: Partial<GrimoirePlayerEntry>): GrimoirePlayerEntry
     usedDeadVote: overrides.usedDeadVote ?? false,
     connected: overrides.connected ?? true,
     seatIndex: overrides.seatIndex ?? 0,
+    livingLeftNeighborId: overrides.livingLeftNeighborId ?? null,
+    livingRightNeighborId: overrides.livingRightNeighborId ?? null,
   };
 }
 

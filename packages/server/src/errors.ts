@@ -51,4 +51,9 @@ export const Errors = {
   distributionAlreadyDone: () =>
     new ClocktowerError('DISTRIBUTION_ALREADY_DONE', 'Roles have already been assigned for this game.', 403),
   validationFailed: (message: string) => new ClocktowerError('VALIDATION_FAILED', message, 422),
+  questionNotFound: () => new ClocktowerError('QUESTION_NOT_FOUND', "That question isn't in the queue.", 404),
+  questionAlreadyAnswered: () =>
+    new ClocktowerError('QUESTION_ALREADY_ANSWERED', 'That question has already been answered.', 403),
+  questionNotActive: () =>
+    new ClocktowerError('QUESTION_NOT_ACTIVE', 'Answer questions in order — this one is not next in the queue.', 403),
 };

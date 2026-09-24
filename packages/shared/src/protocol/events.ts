@@ -9,6 +9,9 @@ export const ClientEvents = {
   StorytellerShareAbilityResult: 'storyteller:shareAbilityResult',
   StorytellerSetPlayerAlignment: 'storyteller:setPlayerAlignment',
   StorytellerReorderSeats: 'storyteller:reorderSeats',
+  StorytellerSetTimer: 'storyteller:setTimer',
+  PlayerAskQuestion: 'player:askQuestion',
+  StorytellerAnswerQuestion: 'storyteller:answerQuestion',
   PlayerNominate: 'player:nominate',
   PlayerVote: 'player:vote',
   StorytellerCloseVote: 'storyteller:closeVote',
@@ -30,6 +33,7 @@ export const ServerEvents = {
   ExecutionConfirmed: 'execution:confirmed',
   ChatEvilMessage: 'chat:evil:message',
   ChatEvilHistory: 'chat:evil:history',
+  QuestionQueueUpdate: 'question:queueUpdate',
   StorytellerConnectionStatus: 'storyteller:connectionStatus',
   Error: 'error',
 } as const;

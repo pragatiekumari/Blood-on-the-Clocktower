@@ -7,6 +7,7 @@ import {
   type ErrorPayload,
   type GamePhase,
   type GrimoirePlayerEntry,
+  type QuestionEntryView,
 } from '@clocktower/shared';
 
 export interface LobbyPlayer {
@@ -39,6 +40,9 @@ export interface SessionState {
   abilityResult: string | null;
   alive: boolean;
   lastError: ErrorPayload | null;
+  /** Epoch ms when the current phase's countdown ends, or null if no timer is set. */
+  phaseEndsAt: number | null;
+  questionQueue: QuestionEntryView[];
 }
 
 const initialState: SessionState = {
@@ -56,6 +60,8 @@ const initialState: SessionState = {
   abilityResult: null,
   alive: true,
   lastError: null,
+  phaseEndsAt: null,
+  questionQueue: [],
 };
 
 export function useSession(socket: Socket | null): SessionState {
@@ -64,8 +70,19 @@ export function useSession(socket: Socket | null): SessionState {
   useEffect(() => {
     if (!socket) return undefined;
 
-    const onAuthOk = (payload: { role: 'storyteller' | 'player'; phase: GamePhase; dayNumber: number }) => {
-      setState((s) => ({ ...s, role: payload.role, phase: payload.phase, dayNumber: payload.dayNumber }));
+    const onAuthOk = (payload: {
+      role: 'storyteller' | 'player';
+      phase: GamePhase;
+      dayNumber: number;
+      phaseEndsAt: number | null;
+    }) => {
+      setState((s) => ({
+        ...s,
+        role: payload.role,
+        phase: payload.phase,
+        dayNumber: payload.dayNumber,
+        phaseEndsAt: payload.phaseEndsAt,
+      }));
     };
     const onLobbyUpdate = (payload: { players: LobbyPlayer[] }) => {
       setState((s) => ({ ...s, lobbyPlayers: payload.players }));
@@ -77,8 +94,14 @@ export function useSession(socket: Socket | null): SessionState {
         grimoire: payload.role === 'storyteller' ? payload.grimoire : s.grimoire,
       }));
     };
-    const onPhaseChanged = (payload: { phase: GamePhase; dayNumber: number }) => {
-      setState((s) => ({ ...s, phase: payload.phase, dayNumber: payload.dayNumber, nomination: null }));
+    const onPhaseChanged = (payload: { phase: GamePhase; dayNumber: number; phaseEndsAt: number | null }) => {
+      setState((s) => ({
+        ...s,
+        phase: payload.phase,
+        dayNumber: payload.dayNumber,
+        phaseEndsAt: payload.phaseEndsAt,
+        nomination: null,
+      }));
     };
     const onGrimoireUpdate = (payload: { grimoire: GrimoirePlayerEntry[] }) => {
       setState((s) => ({ ...s, grimoire: payload.grimoire }));
@@ -114,6 +137,9 @@ export function useSession(socket: Socket | null): SessionState {
     const onError = (payload: ErrorPayload) => {
       setState((s) => ({ ...s, lastError: payload }));
     };
+    const onQuestionQueueUpdate = (payload: { questions: QuestionEntryView[] }) => {
+      setState((s) => ({ ...s, questionQueue: payload.questions }));
+    };
 
     socket.on(ServerEvents.AuthOk, onAuthOk);
     socket.on(ServerEvents.LobbyUpdate, onLobbyUpdate);
@@ -129,6 +155,7 @@ export function useSession(socket: Socket | null): SessionState {
     socket.on(ServerEvents.ChatEvilHistory, onChatHistory);
     socket.on(ServerEvents.StorytellerConnectionStatus, onStorytellerStatus);
     socket.on(ServerEvents.Error, onError);
+    socket.on(ServerEvents.QuestionQueueUpdate, onQuestionQueueUpdate);
 
     return () => {
       socket.off(ServerEvents.AuthOk, onAuthOk);
@@ -145,6 +172,7 @@ export function useSession(socket: Socket | null): SessionState {
       socket.off(ServerEvents.ChatEvilHistory, onChatHistory);
       socket.off(ServerEvents.StorytellerConnectionStatus, onStorytellerStatus);
       socket.off(ServerEvents.Error, onError);
+      socket.off(ServerEvents.QuestionQueueUpdate, onQuestionQueueUpdate);
     };
   }, [socket]);
 

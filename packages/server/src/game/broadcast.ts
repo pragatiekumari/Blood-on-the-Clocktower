@@ -1,7 +1,7 @@
 import type { Server as SocketIOServer } from 'socket.io';
 import { ServerEvents, type GrimoirePlayerEntry } from '@clocktower/shared';
 import type { GameSession, PlayerRecord } from '../session/store.js';
-import { playersBySeat } from '../session/store.js';
+import { livingNeighborsOf, playersBySeat } from '../session/store.js';
 
 export const STORYTELLER_SOCKET_KEY = '__storyteller__';
 
@@ -31,18 +31,23 @@ export function sendToStoryteller(io: SocketIOServer, session: GameSession, even
 }
 
 export function buildGrimoire(session: GameSession): GrimoirePlayerEntry[] {
-  return playersBySeat(session).map((p) => ({
-    playerId: p.playerId,
-    displayName: p.displayName,
-    character: p.character,
-    characterType: p.characterType,
-    alignment: p.alignment,
-    alive: p.alive,
-    statusEffects: p.statusEffects,
-    usedDeadVote: p.usedDeadVote,
-    connected: p.connectionId !== null,
-    seatIndex: p.seatIndex,
-  }));
+  return playersBySeat(session).map((p) => {
+    const { left, right } = livingNeighborsOf(session, p.playerId);
+    return {
+      playerId: p.playerId,
+      displayName: p.displayName,
+      character: p.character,
+      characterType: p.characterType,
+      alignment: p.alignment,
+      alive: p.alive,
+      statusEffects: p.statusEffects,
+      usedDeadVote: p.usedDeadVote,
+      connected: p.connectionId !== null,
+      seatIndex: p.seatIndex,
+      livingLeftNeighborId: left?.playerId ?? null,
+      livingRightNeighborId: right?.playerId ?? null,
+    };
+  });
 }
 
 export function broadcastGrimoire(io: SocketIOServer, session: GameSession): void {

@@ -61,10 +61,10 @@ describe('buildPlayerDistributionPayload (information hiding)', () => {
     const payload = buildPlayerDistributionPayload(session, goodPlayer!);
     expect(payload.role).toBe('player');
     expect('teammates' in payload).toBe(false);
-    expect('bluffs' in payload).toBe(false);
+    expect('bluff' in payload).toBe(false);
   });
 
-  it('includes teammates and bluffs only for an Evil-aligned player, and bluffs are Townsfolk not in play', () => {
+  it('includes teammates and exactly one bluff for an Evil-aligned player, and the bluff is a Townsfolk not in play', () => {
     const session = makeSessionWithPlayers(10);
     distributeRoles(session);
     const evilPlayer = [...session.players.values()].find((p) => p.alignment === 'evil');
@@ -72,14 +72,36 @@ describe('buildPlayerDistributionPayload (information hiding)', () => {
     const payload = buildPlayerDistributionPayload(session, evilPlayer!);
     if (payload.role === 'player' && 'teammates' in payload) {
       const inPlayIds = new Set([...session.players.values()].map((p) => p.character));
-      for (const bluff of payload.bluffs ?? []) {
-        expect(inPlayIds.has(bluff.id)).toBe(false);
-      }
+      expect(payload.bluff).toBeDefined();
+      expect(inPlayIds.has(payload.bluff!.id)).toBe(false);
       for (const teammate of payload.teammates ?? []) {
         expect(teammate.playerId).not.toBe(evilPlayer!.playerId);
       }
     } else {
       throw new Error('expected evil payload shape');
+    }
+  });
+
+  it('gives each Evil player a fixed bluff that never changes across repeated payload builds', () => {
+    const session = makeSessionWithPlayers(10);
+    distributeRoles(session);
+    const evilPlayer = [...session.players.values()].find((p) => p.alignment === 'evil')!;
+    const first = buildPlayerDistributionPayload(session, evilPlayer);
+    const second = buildPlayerDistributionPayload(session, evilPlayer);
+    if (first.role === 'player' && 'bluff' in first && second.role === 'player' && 'bluff' in second) {
+      expect(first.bluff?.id).toBe(second.bluff?.id);
+    } else {
+      throw new Error('expected evil payload shape');
+    }
+  });
+
+  it('gives each Evil player their own bluff (not necessarily shared with other Evil players)', () => {
+    const session = makeSessionWithPlayers(15); // 3 minions + 1 demon = 4 evil players
+    distributeRoles(session);
+    const evilPlayers = [...session.players.values()].filter((p) => p.alignment === 'evil');
+    expect(evilPlayers.length).toBeGreaterThan(1);
+    for (const p of evilPlayers) {
+      expect(p.bluffCharacterId).not.toBeNull();
     }
   });
 });

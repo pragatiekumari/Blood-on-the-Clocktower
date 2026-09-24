@@ -12,6 +12,11 @@ function characterName(id: string | null): string {
   return getCharacterById(id)?.name ?? id;
 }
 
+function nameOf(grimoire: GrimoirePlayerEntry[], playerId: string | null): string {
+  if (!playerId) return '—';
+  return grimoire.find((g) => g.playerId === playerId)?.displayName ?? '—';
+}
+
 // Evil roles surfaced first (Demon, then Minion), then Good roles (Townsfolk, then
 // Outsider), so the Storyteller can scan the threat before the town. Unassigned
 // characters (pre-distribution) sort last.
@@ -54,6 +59,7 @@ export function GrimoireTable({ grimoire, onToggleStatus, onMarkDead }: Grimoire
             <th style={{ padding: 8 }}>Player</th>
             <th style={{ padding: 8 }}>Character</th>
             <th style={{ padding: 8 }}>Alignment</th>
+            <th style={{ padding: 8 }}>Living Neighbors</th>
             <th style={{ padding: 8 }}>Status</th>
             <th style={{ padding: 8 }}>Alive</th>
             <th style={{ padding: 8 }}></th>
@@ -84,6 +90,9 @@ export function GrimoireTable({ grimoire, onToggleStatus, onMarkDead }: Grimoire
                     <span className={entry.alignment === 'evil' ? 'alignment-evil' : 'alignment-good'}>
                       {entry.alignment ?? '—'}
                     </span>
+                  </td>
+                  <td style={{ padding: 8, fontSize: 13 }} className="faint">
+                    {nameOf(grimoire, entry.livingLeftNeighborId)} / {nameOf(grimoire, entry.livingRightNeighborId)}
                   </td>
                   <td style={{ padding: 8 }}>
                     <StatusToggles entry={entry} onToggleStatus={onToggleStatus} />
@@ -125,6 +134,9 @@ export function GrimoireTable({ grimoire, onToggleStatus, onMarkDead }: Grimoire
                 </div>
                 <p className="muted" style={{ margin: '4px 0' }}>
                   {characterName(entry.character)} — {entry.alive ? 'Alive' : 'Dead'}
+                </p>
+                <p className="faint" style={{ margin: '0 0 8px' }}>
+                  Neighbors: {nameOf(grimoire, entry.livingLeftNeighborId)} / {nameOf(grimoire, entry.livingRightNeighborId)}
                 </p>
                 <StatusToggles entry={entry} onToggleStatus={onToggleStatus} />
                 {entry.alive && (

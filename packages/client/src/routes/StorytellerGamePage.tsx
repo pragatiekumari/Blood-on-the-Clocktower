@@ -7,20 +7,39 @@ import { NightOrderPanel } from '../components/grimoire/NightOrderPanel.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
 import { SeatingCircle } from '../components/seating/SeatingCircle.js';
+import { Graveyard } from '../components/seating/Graveyard.js';
+import { PhaseTimer } from '../components/shared/PhaseTimer.js';
+import { StorytellerQuestionPanel } from '../components/questions/StorytellerQuestionPanel.js';
+import { RoleReferenceSection } from '../components/reference/RoleReferenceSection.js';
 
 interface StorytellerGamePageProps {
   socket: Socket | null;
   session: SessionState;
 }
 
+const DEFAULT_TIMER_MINUTES = 5;
+
 export function StorytellerGamePage({ socket, session }: StorytellerGamePageProps) {
   const [abilityTarget, setAbilityTarget] = useState('');
   const [abilityText, setAbilityText] = useState('');
+  const [timerMinutes, setTimerMinutes] = useState(DEFAULT_TIMER_MINUTES);
+  const [showRoles, setShowRoles] = useState(false);
 
   const grimoire = session.grimoire ?? [];
 
   function togglePhase() {
-    socket?.emit(ClientEvents.StorytellerSetPhase, { phase: session.phase === 'day' ? 'night' : 'day' });
+    socket?.emit(ClientEvents.StorytellerSetPhase, {
+      phase: session.phase === 'day' ? 'night' : 'day',
+      timerSeconds: timerMinutes > 0 ? timerMinutes * 60 : undefined,
+    });
+  }
+
+  function startTimer() {
+    socket?.emit(ClientEvents.StorytellerSetTimer, { timerSeconds: timerMinutes * 60 });
+  }
+
+  function clearTimer() {
+    socket?.emit(ClientEvents.StorytellerSetTimer, { timerSeconds: null });
   }
 
   function toggleStatus(playerId: string, key: 'poisoned' | 'drunk' | 'protected') {
@@ -54,6 +73,10 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
     }
   }
 
+  function answerQuestion(questionId: string, answer: string) {
+    socket?.emit(ClientEvents.StorytellerAnswerQuestion, { questionId, answer });
+  }
+
   function moveSeat(playerId: string, direction: 'left' | 'right') {
     const seated = [...grimoire].sort((a, b) => a.seatIndex - b.seatIndex);
     const index = seated.findIndex((p) => p.playerId === playerId);
@@ -80,9 +103,43 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
             {session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
           </p>
         </div>
-        <button className="btn btn-inline btn-primary" onClick={togglePhase}>
-          Switch to {session.phase === 'day' ? 'Night' : 'Day'}
-        </button>
+        <div className="mobile-stack" style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-inline" onClick={() => setShowRoles(true)}>
+            📜 Roles
+          </button>
+          <button className="btn btn-inline btn-primary" onClick={togglePhase}>
+            Switch to {session.phase === 'day' ? 'Night' : 'Day'}
+          </button>
+        </div>
+      </div>
+
+      <PhaseTimer phaseEndsAt={session.phaseEndsAt} phase={session.phase} />
+
+      <div className="panel">
+        <h2 style={{ marginTop: 0 }}>Phase Timer</h2>
+        <div className="mobile-stack" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={60}
+              style={{ width: 70 }}
+              value={timerMinutes}
+              onChange={(e) => setTimerMinutes(Math.max(1, Number(e.target.value) || 1))}
+            />
+            minutes
+          </label>
+          <button className="btn btn-inline" onClick={startTimer}>
+            Start Timer
+          </button>
+          <button className="btn btn-inline" onClick={clearTimer} disabled={!session.phaseEndsAt}>
+            Clear Timer
+          </button>
+        </div>
+        <p className="faint" style={{ marginTop: 8 }}>
+          The duration above is also used automatically when you switch phases with "Switch to Day/Night".
+        </p>
       </div>
 
       <div className="panel">
@@ -91,6 +148,7 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
           Use ↺ / ↻ to swap a player with their neighbor.
         </p>
         <SeatingCircle players={grimoire} onMoveSeat={moveSeat} />
+        <Graveyard players={grimoire} />
       </div>
 
       <div className="panel">
@@ -145,7 +203,11 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
         </div>
       </div>
 
+      <StorytellerQuestionPanel questions={session.questionQueue} onAnswer={answerQuestion} />
+
       <EvilChatPanel messages={session.chatMessages} onSend={() => {}} readOnly />
+
+      {showRoles && <RoleReferenceSection onClose={() => setShowRoles(false)} />}
     </div>
   );
 }

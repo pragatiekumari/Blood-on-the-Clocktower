@@ -89,10 +89,11 @@ describe('full game flow integration', () => {
       // A good player's payload must never carry other players' identities.
       if (payload.alignment === 'good') {
         expect(payload.teammates).toBeUndefined();
-        expect(payload.bluffs).toBeUndefined();
+        expect(payload.bluff).toBeUndefined();
       } else {
         expect(Array.isArray(payload.teammates)).toBe(true);
-        expect(Array.isArray(payload.bluffs)).toBe(true);
+        expect(payload.bluff).toBeDefined();
+        expect(typeof payload.bluff.id).toBe('string');
       }
     }
 

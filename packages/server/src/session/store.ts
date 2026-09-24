@@ -18,6 +18,8 @@ export interface PlayerRecord {
   onboardingSeen: boolean;
   /** Position around the seating circle, 0-indexed clockwise. Defaults to join order. */
   seatIndex: number;
+  /** For Evil players: the one fixed bluff character id assigned at distribution time (stable across reconnects). Null for Good players or before distribution. */
+  bluffCharacterId: string | null;
 }
 
 export interface ActiveNomination {
@@ -38,6 +40,16 @@ export interface ChatMessage {
   ts: number;
 }
 
+export interface QuestionEntry {
+  id: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  answer: string | null;
+  answered: boolean;
+  askedAt: number;
+}
+
 export interface GameSession {
   code: string;
   storytellerConnectionId: string | null;
@@ -49,6 +61,10 @@ export interface GameSession {
   nomination: ActiveNomination | null;
   resolvedNominationsToday: { targetId: string; tally: number }[];
   evilChatHistory: ChatMessage[];
+  /** Epoch ms when the current phase's countdown ends, or null if no timer is set. */
+  phaseEndsAt: number | null;
+  /** Post-night question queue: Evil players' questions surface first, one at a time, gated on the Storyteller answering. */
+  questionQueue: QuestionEntry[];
   createdAt: number;
   lastActivityAt: number;
 }
@@ -75,6 +91,8 @@ export class SessionStore {
       nomination: null,
       resolvedNominationsToday: [],
       evilChatHistory: [],
+      phaseEndsAt: null,
+      questionQueue: [],
       createdAt: Date.now(),
       lastActivityAt: Date.now(),
     };
@@ -116,6 +134,7 @@ export class SessionStore {
       hasNominatedToday: false,
       onboardingSeen: false,
       seatIndex: session.players.size,
+      bluffCharacterId: null,
     };
     session.players.set(playerId, record);
     return record;
@@ -152,6 +171,45 @@ export function evilPlayers(session: GameSession): PlayerRecord[] {
 
 export function playersBySeat(session: GameSession): PlayerRecord[] {
   return [...session.players.values()].sort((a, b) => a.seatIndex - b.seatIndex);
+}
+
+export interface LivingNeighbors {
+  left: PlayerRecord | null;
+  right: PlayerRecord | null;
+}
+
+/**
+ * Finds the nearest LIVING neighbor in each direction around the fixed
+ * seating circle, skipping dead players — this is exactly how neighbor-based
+ * abilities (Empath, Fortune Teller, etc.) work once players are executed:
+ * seat order never changes, but "neighbor" always means nearest living
+ * neighbor. Returns null for a side if there are no other living players.
+ */
+export function livingNeighborsOf(session: GameSession, playerId: string): LivingNeighbors {
+  const seated = playersBySeat(session);
+  const index = seated.findIndex((p) => p.playerId === playerId);
+  if (index === -1 || seated.length < 2) return { left: null, right: null };
+
+  const n = seated.length;
+  let left: PlayerRecord | null = null;
+  for (let step = 1; step < n; step++) {
+    const candidate = seated[(index - step + n) % n]!;
+    if (candidate.alive && candidate.playerId !== playerId) {
+      left = candidate;
+      break;
+    }
+  }
+
+  let right: PlayerRecord | null = null;
+  for (let step = 1; step < n; step++) {
+    const candidate = seated[(index + step) % n]!;
+    if (candidate.alive && candidate.playerId !== playerId) {
+      right = candidate;
+      break;
+    }
+  }
+
+  return { left, right };
 }
 
 /**

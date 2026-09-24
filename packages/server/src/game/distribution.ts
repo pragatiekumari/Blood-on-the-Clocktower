@@ -13,8 +13,6 @@ import {
 import type { GameSession, PlayerRecord } from '../session/store.js';
 import { Errors } from '../errors.js';
 
-const BLUFF_COUNT = 3;
-
 /** Fisher-Yates shuffle, returns a new array (does not mutate input). */
 export function shuffle<T>(items: readonly T[]): T[] {
   const arr = [...items];
@@ -65,6 +63,30 @@ export function distributeRoles(session: GameSession): void {
     player.characterType = character.type;
     player.alignment = character.alignment;
   });
+
+  assignBluffs(session);
+}
+
+/**
+ * Assigns exactly one fixed bluff character to each Evil player, chosen from
+ * Townsfolk not in this game, distinct per player where possible. Computed
+ * once at distribution time and stored on the PlayerRecord so it stays
+ * stable across reconnects (recomputing it on every read would let it
+ * silently change, which it should never do once the game has started).
+ */
+function assignBluffs(session: GameSession): void {
+  const inPlayIds = new Set(
+    [...session.players.values()].map((p) => p.character).filter((c): c is string => c !== null)
+  );
+  const unusedTownsfolk = shuffle(TROUBLE_BREWING_CHARACTERS.filter((c) => c.type === 'townsfolk' && !inPlayIds.has(c.id)));
+
+  const evils = [...session.players.values()].filter((p) => p.alignment === 'evil');
+  evils.forEach((player, index) => {
+    // Cycle through the shuffled pool if there are more Evil players than
+    // unused Townsfolk (rare, but possible at high player counts).
+    const bluff = unusedTownsfolk.length > 0 ? unusedTownsfolk[index % unusedTownsfolk.length] : undefined;
+    player.bluffCharacterId = bluff?.id ?? null;
+  });
 }
 
 export function resetDistribution(session: GameSession): void {
@@ -76,19 +98,8 @@ export function resetDistribution(session: GameSession): void {
     player.usedDeadVote = false;
     player.statusEffects = { poisoned: false, drunk: false, protected: false };
     player.hasNominatedToday = false;
+    player.bluffCharacterId = null;
   }
-}
-
-function computeBluffs(session: GameSession): { id: string; name: string }[] {
-  const inPlayIds = new Set(
-    [...session.players.values()].map((p) => p.character).filter((c): c is string => c !== null)
-  );
-  const unusedTownsfolk = TROUBLE_BREWING_CHARACTERS.filter(
-    (c) => c.type === 'townsfolk' && !inPlayIds.has(c.id)
-  );
-  return shuffle(unusedTownsfolk)
-    .slice(0, BLUFF_COUNT)
-    .map((c) => ({ id: c.id, name: c.name }));
 }
 
 function evilTeammatesOf(session: GameSession, selfId: string) {
@@ -118,10 +129,11 @@ export function buildPlayerDistributionPayload(session: GameSession, player: Pla
     ability: def.ability,
   };
   if (player.alignment === 'evil') {
+    const bluffDef = player.bluffCharacterId ? getCharacterById(player.bluffCharacterId) : undefined;
     return {
       ...base,
       teammates: evilTeammatesOf(session, player.playerId),
-      bluffs: computeBluffs(session),
+      bluff: bluffDef ? { id: bluffDef.id, name: bluffDef.name } : undefined,
     };
   }
   return base;

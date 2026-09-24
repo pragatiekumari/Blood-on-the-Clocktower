@@ -1,6 +1,8 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 import { ZodError } from 'zod';
 import {
+  AnswerQuestionSchema,
+  AskQuestionSchema,
   AuthPayloadSchema,
   ChatSendSchema,
   CloseVoteSchema,
@@ -13,14 +15,17 @@ import {
   SetPhaseSchema,
   SetPlayerAlignmentSchema,
   SetPlayerStatusSchema,
+  SetTimerSchema,
   ShareAbilityResultSchema,
   VoteSchema,
   MIN_PLAYERS,
+  type QuestionEntryView,
 } from '@clocktower/shared';
-import type { SessionStore, GameSession, PlayerRecord } from '../session/store.js';
+import type { SessionStore, GameSession, PlayerRecord, QuestionEntry } from '../session/store.js';
 import { reorderSeats } from '../session/store.js';
 import { syncEvilRoomMembership, sendEvilHistoryTo, sendEvilMessage } from '../game/chat.js';
 import { distributeRoles, resetDistribution, buildPlayerDistributionPayload } from '../game/distribution.js';
+import { askQuestion, answerQuestion, resetQuestionQueue } from '../game/questions.js';
 import {
   broadcastGrimoire,
   broadcastLobby,
@@ -83,6 +88,32 @@ function guarded(io: SocketIOServer, socket: Socket, fn: () => void): void {
   }
 }
 
+function broadcastPhaseChanged(io: SocketIOServer, session: GameSession): void {
+  io.to(sessionRoom(session.code)).emit(ServerEvents.GamePhaseChanged, {
+    phase: session.phase,
+    dayNumber: session.dayNumber,
+    phaseEndsAt: session.phaseEndsAt,
+  });
+}
+
+function toQuestionView(q: QuestionEntry): QuestionEntryView {
+  return {
+    questionId: q.id,
+    playerId: q.playerId,
+    playerName: q.playerName,
+    text: q.text,
+    answer: q.answer,
+    answered: q.answered,
+    askedAt: q.askedAt,
+  };
+}
+
+function broadcastQuestionQueue(io: SocketIOServer, session: GameSession): void {
+  io.to(sessionRoom(session.code)).emit(ServerEvents.QuestionQueueUpdate, {
+    questions: session.questionQueue.map(toQuestionView),
+  });
+}
+
 function broadcastDistribution(io: SocketIOServer, session: GameSession): void {
   for (const player of session.players.values()) {
     const payload = buildPlayerDistributionPayload(session, player);
@@ -120,6 +151,10 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
           role: identity.isStoryteller ? 'storyteller' : 'player',
           phase: identity.session.phase,
           dayNumber: identity.session.dayNumber,
+          phaseEndsAt: identity.session.phaseEndsAt,
+        });
+        socket.emit(ServerEvents.QuestionQueueUpdate, {
+          questions: identity.session.questionQueue.map(toQuestionView),
         });
         broadcastLobby(io, identity.session);
         store.touch(identity.session);
@@ -134,11 +169,9 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         distributeRoles(session);
         session.phase = 'day';
         session.dayNumber = 1;
+        session.phaseEndsAt = null;
         broadcastDistribution(io, session);
-        io.to(sessionRoom(session.code)).emit(ServerEvents.GamePhaseChanged, {
-          phase: session.phase,
-          dayNumber: session.dayNumber,
-        });
+        broadcastPhaseChanged(io, session);
         store.touch(session);
       })
     );
@@ -157,18 +190,28 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
     socket.on(ClientEvents.StorytellerSetPhase, (raw: unknown) =>
       guarded(io, socket, () => {
         const session = requireStoryteller(socket);
-        const { phase } = SetPhaseSchema.parse(raw);
+        const { phase, timerSeconds } = SetPhaseSchema.parse(raw);
         if (session.phase !== 'day' && session.phase !== 'night') throw Errors.invalidPhaseTransition();
         if (phase === 'day') {
           resetForNewDay(session);
+          resetQuestionQueue(session);
           session.dayNumber += 1;
         }
         session.phase = phase;
-        io.to(sessionRoom(session.code)).emit(ServerEvents.GamePhaseChanged, {
-          phase: session.phase,
-          dayNumber: session.dayNumber,
-        });
+        session.phaseEndsAt = timerSeconds ? Date.now() + timerSeconds * 1000 : null;
+        broadcastPhaseChanged(io, session);
         broadcastGrimoire(io, session);
+        broadcastQuestionQueue(io, session);
+        store.touch(session);
+      })
+    );
+
+    socket.on(ClientEvents.StorytellerSetTimer, (raw: unknown) =>
+      guarded(io, socket, () => {
+        const session = requireStoryteller(socket);
+        const { timerSeconds } = SetTimerSchema.parse(raw);
+        session.phaseEndsAt = timerSeconds ? Date.now() + timerSeconds * 1000 : null;
+        broadcastPhaseChanged(io, session);
         store.touch(session);
       })
     );
@@ -290,16 +333,46 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
       })
     );
 
+    socket.on(ClientEvents.PlayerAskQuestion, (raw: unknown) =>
+      guarded(io, socket, () => {
+        const { session, player } = requirePlayer(socket);
+        const { text } = AskQuestionSchema.parse(raw);
+        askQuestion(session, player.playerId, text);
+        broadcastQuestionQueue(io, session);
+        store.touch(session);
+      })
+    );
+
+    socket.on(ClientEvents.StorytellerAnswerQuestion, (raw: unknown) =>
+      guarded(io, socket, () => {
+        const session = requireStoryteller(socket);
+        const { questionId, answer } = AnswerQuestionSchema.parse(raw);
+        answerQuestion(session, questionId, answer);
+        broadcastQuestionQueue(io, session);
+        store.touch(session);
+      })
+    );
+
     socket.on('disconnect', () => {
       const state = getState(socket);
       const identity = state.identity;
       if (!identity) return;
+      // Only clear the connection if THIS socket is still the current one for
+      // that identity. A page refresh authenticates a new socket before the
+      // old socket's disconnect event fires; without this check, the stale
+      // disconnect would wipe out the new (already-reconnected) connection
+      // id and everyone would see the player as disconnected even though
+      // they're actually online.
       if (identity.isStoryteller) {
-        identity.session.storytellerConnectionId = null;
-        io.to(sessionRoom(identity.session.code)).emit(ServerEvents.StorytellerConnectionStatus, { connected: false });
+        if (identity.session.storytellerConnectionId === socket.id) {
+          identity.session.storytellerConnectionId = null;
+          io.to(sessionRoom(identity.session.code)).emit(ServerEvents.StorytellerConnectionStatus, { connected: false });
+        }
       } else if (identity.player) {
-        identity.player.connectionId = null;
-        broadcastLobby(io, identity.session);
+        if (identity.player.connectionId === socket.id) {
+          identity.player.connectionId = null;
+          broadcastLobby(io, identity.session);
+        }
       }
     });
   });
