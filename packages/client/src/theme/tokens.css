@@ -1,0 +1,256 @@
+:root {
+  /* Ravenswood Bluff gothic palette */
+  --bg-void: #0b0b12;
+  --bg-panel: #16151f;
+  --bg-panel-raised: #201f2c;
+  --border-subtle: #34324a;
+  --text-primary: #ece7f5;
+  --text-muted: #a29cb8;
+  --text-faint: #6f6a85;
+
+  --accent-gold: #c9a24b;
+  --accent-gold-bright: #e6c877;
+
+  --good-blue: #3f7fd6;
+  --good-blue-bg: rgba(63, 127, 214, 0.14);
+  --evil-red: #c23b3b;
+  --evil-red-bg: rgba(194, 59, 59, 0.14);
+
+  --danger: #d64545;
+  --success: #4caf6f;
+
+  --font-display: 'Georgia', 'Iowan Old Style', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-panel: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #1a1826 0%, var(--bg-void) 60%);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+a {
+  color: var(--accent-gold-bright);
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 96px;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  padding: 24px;
+}
+
+.panel + .panel {
+  margin-top: 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel-raised);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform 0.05s ease, border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--accent-gold);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent-gold-bright), var(--accent-gold));
+  color: #1a1206;
+  border-color: transparent;
+}
+
+.btn-danger {
+  background: linear-gradient(180deg, #e05a5a, var(--danger));
+  color: #200606;
+  border-color: transparent;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.input:focus {
+  outline: 2px solid var(--accent-gold);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-townsfolk {
+  background: var(--good-blue-bg);
+  color: var(--good-blue);
+  border: 1px solid var(--good-blue);
+}
+
+.badge-outsider {
+  background: var(--good-blue-bg);
+  color: #7ea9e8;
+  border: 1px solid #7ea9e8;
+}
+
+.badge-minion {
+  background: var(--evil-red-bg);
+  color: var(--evil-red);
+  border: 1px solid var(--evil-red);
+}
+
+.badge-demon {
+  background: var(--evil-red-bg);
+  color: #e35a5a;
+  border: 1px solid #e35a5a;
+}
+
+.alignment-good {
+  color: var(--good-blue);
+}
+
+.alignment-evil {
+  color: var(--evil-red);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.faint {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+.error-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2a1414;
+  border: 1px solid var(--danger);
+  color: #ffd9d9;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  max-width: 90vw;
+  box-shadow: var(--shadow-panel);
+  z-index: 1000;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 16px;
+}
+
+.tab-bar button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 4px;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-bar button.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-gold);
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: 12px 10px 120px;
+  }
+
+  .grimoire-table {
+    display: none;
+  }
+
+  .bottom-tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-subtle);
+    z-index: 100;
+  }
+
+  .bottom-tab-bar button {
+    flex: 1;
+    padding: 14px 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .bottom-tab-bar {
+    display: none;
+  }
+
+  .grimoire-cards {
+    display: none;
+  }
+}
