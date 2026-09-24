@@ -93,7 +93,12 @@ export function closeVote(session: GameSession, nominationId: string): ActiveNom
   return nomination;
 }
 
-export function confirmExecution(session: GameSession, nominationId: string): void {
+export interface ExecutionResult {
+  targetPlayerId: string;
+  wasDemon: boolean;
+}
+
+export function confirmExecution(session: GameSession, nominationId: string): ExecutionResult {
   const nomination = session.nomination;
   if (!nomination || nomination.id !== nominationId) throw Errors.noActiveNomination();
   if (!nomination.closed || !nomination.pendingExecution) {
@@ -101,9 +106,11 @@ export function confirmExecution(session: GameSession, nominationId: string): vo
   }
   const target = session.players.get(nomination.targetId);
   if (!target) throw Errors.playerNotFound();
+  const wasDemon = target.characterType === 'demon';
   target.alive = false;
   // Remove from the qualifying list so a later tie in the same day can't reference a resolved execution twice.
   session.resolvedNominationsToday = session.resolvedNominationsToday.filter((r) => r.targetId !== nomination.targetId);
+  return { targetPlayerId: target.playerId, wasDemon };
 }
 
 /** Called when transitioning into the day phase: resets per-day nomination usage, preserves lifetime dead-vote usage. */

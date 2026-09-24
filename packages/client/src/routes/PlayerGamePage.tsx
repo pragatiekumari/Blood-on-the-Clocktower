@@ -8,6 +8,7 @@ import { VoteTally } from '../components/voting/VoteTally.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
 import { RulesReferencePanel } from '../components/onboarding/RulesReferencePanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
+import { GameEndedBanner } from '../components/shared/GameEndedBanner.js';
 import { SeatingCircle } from '../components/seating/SeatingCircle.js';
 import { Graveyard } from '../components/seating/Graveyard.js';
 import { PhaseTimer } from '../components/shared/PhaseTimer.js';
@@ -41,8 +42,9 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
 
   const distribution = session.distribution;
   const isEvil = distribution?.role === 'player' && distribution.alignment === 'evil';
+  const gameEnded = session.phase === 'ended';
   const canNominate = session.phase === 'day' && session.alive && !session.nomination;
-  const canVote = session.phase === 'day' && !session.nomination?.closed;
+  const canVote = session.phase === 'day' && !session.nomination?.closed && !gameEnded;
 
   function nominate(targetPlayerId: string) {
     socket?.emit(ClientEvents.PlayerNominate, { targetPlayerId });
@@ -69,11 +71,12 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
   return (
     <div className="app-shell">
       <ExecutionBanner playerId={session.lastExecutedPlayerId} eventId={session.executionEventId} displayName={executedName} />
+      {session.gameResult && <GameEndedBanner result={session.gameResult} />}
 
       <div className="panel" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>
-            {session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
+            {gameEnded ? 'Game Over' : session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
           </h1>
           {!session.alive && <p className="alignment-evil" style={{ margin: 0 }}>You are dead. You may still vote once.</p>}
         </div>

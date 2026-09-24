@@ -3,8 +3,10 @@ import type { Socket } from 'socket.io-client';
 import {
   ServerEvents,
   type ActiveNominationView,
+  type DemonInheritedPayload,
   type DistributionPayload,
   type ErrorPayload,
+  type GameEndedPayload,
   type GamePhase,
   type GrimoirePlayerEntry,
   type QuestionEntryView,
@@ -43,6 +45,10 @@ export interface SessionState {
   /** Epoch ms when the current phase's countdown ends, or null if no timer is set. */
   phaseEndsAt: number | null;
   questionQueue: QuestionEntryView[];
+  /** Set once the game has ended, whether by automatic detection or Storyteller override. */
+  gameResult: GameEndedPayload | null;
+  /** Storyteller-only: set when a Minion secretly inherits the Demon role (e.g. after an Imp self-kill). */
+  demonInherited: DemonInheritedPayload | null;
 }
 
 const initialState: SessionState = {
@@ -62,6 +68,8 @@ const initialState: SessionState = {
   lastError: null,
   phaseEndsAt: null,
   questionQueue: [],
+  gameResult: null,
+  demonInherited: null,
 };
 
 export function useSession(socket: Socket | null): SessionState {
@@ -75,6 +83,7 @@ export function useSession(socket: Socket | null): SessionState {
       phase: GamePhase;
       dayNumber: number;
       phaseEndsAt: number | null;
+      gameResult?: GameEndedPayload | null;
     }) => {
       setState((s) => ({
         ...s,
@@ -82,6 +91,7 @@ export function useSession(socket: Socket | null): SessionState {
         phase: payload.phase,
         dayNumber: payload.dayNumber,
         phaseEndsAt: payload.phaseEndsAt,
+        gameResult: payload.gameResult ?? s.gameResult,
       }));
     };
     const onLobbyUpdate = (payload: { players: LobbyPlayer[] }) => {
@@ -140,6 +150,12 @@ export function useSession(socket: Socket | null): SessionState {
     const onQuestionQueueUpdate = (payload: { questions: QuestionEntryView[] }) => {
       setState((s) => ({ ...s, questionQueue: payload.questions }));
     };
+    const onGameEnded = (payload: GameEndedPayload) => {
+      setState((s) => ({ ...s, gameResult: payload, phase: 'ended' }));
+    };
+    const onDemonInherited = (payload: DemonInheritedPayload) => {
+      setState((s) => ({ ...s, demonInherited: payload }));
+    };
 
     socket.on(ServerEvents.AuthOk, onAuthOk);
     socket.on(ServerEvents.LobbyUpdate, onLobbyUpdate);
@@ -156,6 +172,8 @@ export function useSession(socket: Socket | null): SessionState {
     socket.on(ServerEvents.StorytellerConnectionStatus, onStorytellerStatus);
     socket.on(ServerEvents.Error, onError);
     socket.on(ServerEvents.QuestionQueueUpdate, onQuestionQueueUpdate);
+    socket.on(ServerEvents.GameEnded, onGameEnded);
+    socket.on(ServerEvents.DemonInherited, onDemonInherited);
 
     return () => {
       socket.off(ServerEvents.AuthOk, onAuthOk);
@@ -173,6 +191,8 @@ export function useSession(socket: Socket | null): SessionState {
       socket.off(ServerEvents.StorytellerConnectionStatus, onStorytellerStatus);
       socket.off(ServerEvents.Error, onError);
       socket.off(ServerEvents.QuestionQueueUpdate, onQuestionQueueUpdate);
+      socket.off(ServerEvents.GameEnded, onGameEnded);
+      socket.off(ServerEvents.DemonInherited, onDemonInherited);
     };
   }, [socket]);
 

@@ -79,3 +79,24 @@ export interface QuestionEntryView {
   answered: boolean;
   askedAt: number;
 }
+
+export type WinningTeam = 'good' | 'evil';
+
+export type GameEndReason =
+  | 'demon-executed'
+  | 'demon-self-killed'
+  | 'two-players-left'
+  | 'storyteller-ended';
+
+/** Broadcast to everyone once the game ends, whether by automatic detection or a Storyteller override. */
+export interface GameEndedPayload {
+  winner: WinningTeam;
+  reason: GameEndReason;
+}
+
+/** Sent only to the Storyteller when a Minion secretly inherits the Demon role (Imp self-kill, or a future Scarlet-Woman-style takeover). */
+export interface DemonInheritedPayload {
+  previousDemonPlayerId: string;
+  newDemonPlayerId: string;
+  newDemonCharacterId: string;
+}

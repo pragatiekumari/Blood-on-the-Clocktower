@@ -6,6 +6,7 @@ import { GrimoireTable } from '../components/grimoire/GrimoireTable.js';
 import { NightOrderPanel } from '../components/grimoire/NightOrderPanel.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
+import { GameEndedBanner } from '../components/shared/GameEndedBanner.js';
 import { SeatingCircle } from '../components/seating/SeatingCircle.js';
 import { Graveyard } from '../components/seating/Graveyard.js';
 import { PhaseTimer } from '../components/shared/PhaseTimer.js';
@@ -24,6 +25,9 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
   const [abilityText, setAbilityText] = useState('');
   const [timerMinutes, setTimerMinutes] = useState(DEFAULT_TIMER_MINUTES);
   const [showRoles, setShowRoles] = useState(false);
+  const [demonKillTarget, setDemonKillTarget] = useState('');
+  const [confirmingEndGame, setConfirmingEndGame] = useState(false);
+  const [dismissedInheritance, setDismissedInheritance] = useState(false);
 
   const grimoire = session.grimoire ?? [];
 
@@ -77,6 +81,17 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
     socket?.emit(ClientEvents.StorytellerAnswerQuestion, { questionId, answer });
   }
 
+  function demonKill() {
+    if (!demonKillTarget) return;
+    socket?.emit(ClientEvents.StorytellerDemonKill, { targetPlayerId: demonKillTarget });
+    setDemonKillTarget('');
+  }
+
+  function endGame(winner: 'good' | 'evil') {
+    socket?.emit(ClientEvents.StorytellerEndGame, { winner });
+    setConfirmingEndGame(false);
+  }
+
   function moveSeat(playerId: string, direction: 'left' | 'right') {
     const seated = [...grimoire].sort((a, b) => a.seatIndex - b.seatIndex);
     const index = seated.findIndex((p) => p.playerId === playerId);
@@ -92,28 +107,101 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
     ? grimoire.find((g) => g.playerId === session.lastExecutedPlayerId)?.displayName
     : undefined;
 
+  const gameEnded = session.phase === 'ended';
+  const livingDemon = grimoire.find((g) => g.alive && g.characterType === 'demon');
+  const inheritanceNotice =
+    session.demonInherited && !dismissedInheritance ? session.demonInherited : null;
+  const inheritedName = inheritanceNotice
+    ? grimoire.find((g) => g.playerId === inheritanceNotice.newDemonPlayerId)?.displayName
+    : undefined;
+
   return (
     <div className="app-shell">
       <ExecutionBanner playerId={session.lastExecutedPlayerId} eventId={session.executionEventId} displayName={executedName} />
+      {session.gameResult && <GameEndedBanner result={session.gameResult} />}
+      {inheritanceNotice && (
+        <div className="panel" style={{ borderColor: 'var(--evil-red)', textAlign: 'center' }}>
+          <p className="alignment-evil" style={{ margin: 0, fontWeight: 600 }}>
+            🎭 {inheritedName ?? 'A Minion'} has secretly become the new Demon. To everyone else, they're still their
+            original character — only you know the truth.
+          </p>
+          <button className="btn btn-inline" style={{ marginTop: 8 }} onClick={() => setDismissedInheritance(true)}>
+            Got it
+          </button>
+        </div>
+      )}
 
       <div className="panel header-row">
         <div>
           <h1 style={{ margin: 0 }}>Storyteller</h1>
           <p className="muted" style={{ margin: 0 }}>
-            {session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
+            {gameEnded ? 'Game over' : session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
           </p>
         </div>
         <div className="mobile-stack" style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-inline" onClick={() => setShowRoles(true)}>
             📜 Roles
           </button>
-          <button className="btn btn-inline btn-primary" onClick={togglePhase}>
+          <button className="btn btn-inline btn-primary" onClick={togglePhase} disabled={gameEnded}>
             Switch to {session.phase === 'day' ? 'Night' : 'Day'}
           </button>
         </div>
       </div>
 
       <PhaseTimer phaseEndsAt={session.phaseEndsAt} phase={session.phase} />
+
+      {!gameEnded && (
+        <div className="panel" style={{ borderColor: 'var(--evil-red)' }}>
+          <h2 style={{ marginTop: 0 }}>Game Control</h2>
+          <div className="mobile-stack" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              className="input"
+              style={{ minWidth: 200 }}
+              value={demonKillTarget}
+              onChange={(e) => setDemonKillTarget(e.target.value)}
+            >
+              <option value="">Demon kills a player…</option>
+              {grimoire
+                .filter((g) => g.alive)
+                .map((g) => (
+                  <option key={g.playerId} value={g.playerId}>
+                    {g.displayName}
+                    {g.playerId === livingDemon?.playerId ? ' (Demon)' : ''}
+                  </option>
+                ))}
+            </select>
+            <button className="btn btn-inline btn-danger" onClick={demonKill} disabled={!demonKillTarget || !livingDemon}>
+              Kill
+            </button>
+          </div>
+          <p className="faint" style={{ marginTop: 8 }}>
+            {livingDemon
+              ? 'Triggers the night-kill (or self-kill, if the Demon targets themself). A self-kill hands the role to a random living Minion.'
+              : 'No living Demon — the kill action is unavailable.'}
+          </p>
+
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--border-color, rgba(255,255,255,0.1))', paddingTop: 16 }}>
+            {!confirmingEndGame ? (
+              <button className="btn btn-inline btn-danger" onClick={() => setConfirmingEndGame(true)}>
+                End Game…
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="muted">Declare a winner:</span>
+                <button className="btn btn-inline" onClick={() => endGame('good')}>
+                  Good wins
+                </button>
+                <button className="btn btn-inline btn-danger" onClick={() => endGame('evil')}>
+                  Evil wins
+                </button>
+                <button className="btn btn-inline" onClick={() => setConfirmingEndGame(false)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="panel">
         <h2 style={{ marginTop: 0 }}>Phase Timer</h2>
@@ -158,7 +246,7 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
 
       <NightOrderPanel grimoire={grimoire} isFirstNight={session.dayNumber <= 1 && session.phase === 'night'} />
 
-      {session.nomination && (
+      {session.nomination && !gameEnded && (
         <div className="panel">
           <h2 style={{ marginTop: 0 }}>Active Nomination</h2>
           <p>

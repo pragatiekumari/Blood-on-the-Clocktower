@@ -7,6 +7,8 @@ import {
   ChatSendSchema,
   CloseVoteSchema,
   ConfirmExecutionSchema,
+  DemonKillSchema,
+  EndGameSchema,
   MarkDeadSchema,
   NominateSchema,
   ServerEvents,
@@ -19,13 +21,17 @@ import {
   ShareAbilityResultSchema,
   VoteSchema,
   MIN_PLAYERS,
+  type GameEndReason,
   type QuestionEntryView,
+  type WinningTeam,
 } from '@clocktower/shared';
 import type { SessionStore, GameSession, PlayerRecord, QuestionEntry } from '../session/store.js';
 import { reorderSeats } from '../session/store.js';
 import { syncEvilRoomMembership, sendEvilHistoryTo, sendEvilMessage } from '../game/chat.js';
 import { distributeRoles, resetDistribution, buildPlayerDistributionPayload } from '../game/distribution.js';
 import { askQuestion, answerQuestion, resetQuestionQueue } from '../game/questions.js';
+import { resolveDemonKill } from '../game/demonKill.js';
+import { checkWinCondition, endGame, tryScarletWomanTakeover } from '../game/winConditions.js';
 import {
   broadcastGrimoire,
   broadcastLobby,
@@ -126,6 +132,73 @@ function sendQuestionQueueUpdates(io: SocketIOServer, session: GameSession): voi
   }
 }
 
+function broadcastGameEnded(io: SocketIOServer, session: GameSession, winner: WinningTeam, reason: GameEndReason): void {
+  endGame(session, winner, reason);
+  io.to(sessionRoom(session.code)).emit(ServerEvents.GameEnded, { winner, reason });
+}
+
+/** Tells the Storyteller only that a Minion has secretly inherited the Demon role. Nobody else is informed by the server — the new Demon keeps playing as whatever they were already claiming to be. */
+function sendDemonInherited(
+  io: SocketIOServer,
+  session: GameSession,
+  previousDemonPlayerId: string,
+  newDemonPlayerId: string,
+  newDemonCharacterId: string
+): void {
+  sendToStoryteller(io, session, ServerEvents.DemonInherited, {
+    previousDemonPlayerId,
+    newDemonPlayerId,
+    newDemonCharacterId,
+  });
+}
+
+/**
+ * Runs after ANY player death (execution or night kill) that was not
+ * itself a resolved Demon self-kill hand-off: applies the Scarlet Woman
+ * takeover if applicable, then checks whether the game has ended. Returns
+ * true if the game ended (caller should skip further game-state broadcasts
+ * beyond the GameEnded event, since the session is now frozen).
+ */
+function handlePostDeath(
+  io: SocketIOServer,
+  session: GameSession,
+  deadPlayerId: string,
+  wasDemon: boolean,
+  deathReason: 'executed' | 'self-killed'
+): boolean {
+  if (wasDemon) {
+    const takeover = tryScarletWomanTakeover(session, deadPlayerId);
+    if (takeover) {
+      sendDemonInherited(
+        io,
+        session,
+        takeover.previousDemonPlayerId,
+        takeover.newDemonPlayerId,
+        takeover.newDemonCharacterId
+      );
+      // A legitimate hand-off happened; there IS still a living Demon, so
+      // do not run the "no Demon left" win check this round.
+      const evilWin = checkWinCondition(session, deathReason);
+      if (evilWin && evilWin.winner === 'evil') {
+        broadcastGameEnded(io, session, evilWin.winner, evilWin.reason);
+        return true;
+      }
+      return false;
+    }
+  }
+
+  const result = checkWinCondition(session, deathReason);
+  if (result) {
+    broadcastGameEnded(io, session, result.winner, result.reason);
+    return true;
+  }
+  return false;
+}
+
+function requireGameNotEnded(session: GameSession): void {
+  if (session.phase === 'ended') throw Errors.gameAlreadyEnded();
+}
+
 function broadcastDistribution(io: SocketIOServer, session: GameSession): void {
   for (const player of session.players.values()) {
     const payload = buildPlayerDistributionPayload(session, player);
@@ -172,6 +245,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
           phase: identity.session.phase,
           dayNumber: identity.session.dayNumber,
           phaseEndsAt: identity.session.phaseEndsAt,
+          gameResult: identity.session.gameResult,
         });
         if (identity.isStoryteller) {
           socket.emit(ServerEvents.QuestionQueueUpdate, {
@@ -258,13 +332,17 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
     socket.on(ClientEvents.StorytellerMarkDead, (raw: unknown) =>
       guarded(io, socket, () => {
         const session = requireStoryteller(socket);
+        requireGameNotEnded(session);
         const { playerId } = MarkDeadSchema.parse(raw);
         const player = session.players.get(playerId);
         if (!player) throw Errors.playerNotFound();
+        const wasDemon = player.characterType === 'demon';
         player.alive = false;
         broadcastGrimoire(io, session);
         broadcastLobby(io, session);
         sendToPlayer(io, player, ServerEvents.PlayerSelfUpdate, { alive: false });
+        const ended = handlePostDeath(io, session, playerId, wasDemon, 'executed');
+        if (ended) broadcastGrimoire(io, session);
         store.touch(session);
       })
     );
@@ -309,6 +387,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
     socket.on(ClientEvents.PlayerNominate, (raw: unknown) =>
       guarded(io, socket, () => {
         const { session, player } = requirePlayer(socket);
+        requireGameNotEnded(session);
         const { targetPlayerId } = NominateSchema.parse(raw);
         const nomination = nominate(session, player.playerId, targetPlayerId);
         io.to(sessionRoom(session.code)).emit(ServerEvents.NominationOpened, toNominationView(nomination));
@@ -319,6 +398,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
     socket.on(ClientEvents.PlayerVote, (raw: unknown) =>
       guarded(io, socket, () => {
         const { session, player } = requirePlayer(socket);
+        requireGameNotEnded(session);
         const { nominationId, voting } = VoteSchema.parse(raw);
         const nomination = castVote(session, nominationId, player.playerId, voting);
         io.to(sessionRoom(session.code)).emit(ServerEvents.NominationVoteUpdate, toNominationView(nomination));
@@ -329,6 +409,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
     socket.on(ClientEvents.StorytellerCloseVote, (raw: unknown) =>
       guarded(io, socket, () => {
         const session = requireStoryteller(socket);
+        requireGameNotEnded(session);
         const { nominationId } = CloseVoteSchema.parse(raw);
         const nomination = closeVote(session, nominationId);
         io.to(sessionRoom(session.code)).emit(ServerEvents.NominationClosed, toNominationView(nomination));
@@ -339,14 +420,66 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
     socket.on(ClientEvents.StorytellerConfirmExecution, (raw: unknown) =>
       guarded(io, socket, () => {
         const session = requireStoryteller(socket);
+        requireGameNotEnded(session);
         const { nominationId } = ConfirmExecutionSchema.parse(raw);
-        const targetId = session.nomination?.targetId;
-        confirmExecution(session, nominationId);
-        if (targetId) {
-          io.to(sessionRoom(session.code)).emit(ServerEvents.ExecutionConfirmed, { playerId: targetId });
-        }
+        const result = confirmExecution(session, nominationId);
+        io.to(sessionRoom(session.code)).emit(ServerEvents.ExecutionConfirmed, { playerId: result.targetPlayerId });
         broadcastGrimoire(io, session);
         broadcastLobby(io, session);
+        handlePostDeath(io, session, result.targetPlayerId, result.wasDemon, 'executed');
+        store.touch(session);
+      })
+    );
+
+    socket.on(ClientEvents.StorytellerDemonKill, (raw: unknown) =>
+      guarded(io, socket, () => {
+        const session = requireStoryteller(socket);
+        requireGameNotEnded(session);
+        const { targetPlayerId: killTargetId } = DemonKillSchema.parse(raw);
+        // The Storyteller acts on the Demon's behalf, so find the (only)
+        // living Demon rather than requiring a specific killer socket.
+        const demon = [...session.players.values()].find((p) => p.alive && p.characterType === 'demon');
+        if (!demon) throw Errors.notTheDemon();
+        const killResult = resolveDemonKill(session, demon.playerId, killTargetId);
+        broadcastGrimoire(io, session);
+        broadcastLobby(io, session);
+        sendToPlayer(io, session.players.get(killResult.targetPlayerId)!, ServerEvents.PlayerSelfUpdate, {
+          alive: false,
+        });
+        if (killResult.inheritance) {
+          sendDemonInherited(
+            io,
+            session,
+            killResult.inheritance.previousDemonPlayerId,
+            killResult.inheritance.newDemonPlayerId,
+            killResult.inheritance.newDemonCharacterId
+          );
+          const heir = session.players.get(killResult.inheritance.newDemonPlayerId);
+          if (heir) {
+            const payload = buildPlayerDistributionPayload(session, heir);
+            sendToPlayer(io, heir, ServerEvents.GameDistributed, payload);
+          }
+          // A Minion inherited the Demon role, so "no Demon left" never
+          // fires — but the self-kill may still have dropped the living
+          // count to 2, which is an independent Evil win condition.
+          const livingCountResult = checkWinCondition(session, 'self-killed');
+          if (livingCountResult && livingCountResult.winner === 'evil') {
+            broadcastGameEnded(io, session, livingCountResult.winner, livingCountResult.reason);
+          }
+          store.touch(session);
+        } else {
+          handlePostDeath(io, session, killResult.targetPlayerId, true, 'self-killed');
+          store.touch(session);
+        }
+      })
+    );
+
+    socket.on(ClientEvents.StorytellerEndGame, (raw: unknown) =>
+      guarded(io, socket, () => {
+        const session = requireStoryteller(socket);
+        requireGameNotEnded(session);
+        const { winner } = EndGameSchema.parse(raw);
+        broadcastGameEnded(io, session, winner, 'storyteller-ended');
         store.touch(session);
       })
     );

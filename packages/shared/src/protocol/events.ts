@@ -16,6 +16,8 @@ export const ClientEvents = {
   PlayerVote: 'player:vote',
   StorytellerCloseVote: 'storyteller:closeVote',
   StorytellerConfirmExecution: 'storyteller:confirmExecution',
+  StorytellerDemonKill: 'storyteller:demonKill',
+  StorytellerEndGame: 'storyteller:endGame',
   ChatEvilSend: 'chat:evil:send',
 } as const;
 
@@ -35,6 +37,8 @@ export const ServerEvents = {
   ChatEvilHistory: 'chat:evil:history',
   QuestionQueueUpdate: 'question:queueUpdate',
   StorytellerConnectionStatus: 'storyteller:connectionStatus',
+  GameEnded: 'game:ended',
+  DemonInherited: 'demon:inherited',
   Error: 'error',
 } as const;
 

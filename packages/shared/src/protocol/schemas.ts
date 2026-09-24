@@ -71,6 +71,12 @@ export const AnswerQuestionSchema = z.object({
   questionId: z.string().min(1),
   answer: z.string().min(1).max(1000),
 });
+export const DemonKillSchema = z.object({
+  targetPlayerId: z.string().min(1),
+});
+export const EndGameSchema = z.object({
+  winner: z.enum(['good', 'evil']),
+});
 
 export const CreateSessionRequestSchema = z.object({});
 

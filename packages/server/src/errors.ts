@@ -56,4 +56,6 @@ export const Errors = {
     new ClocktowerError('QUESTION_ALREADY_ANSWERED', 'That question has already been answered.', 403),
   questionNotActive: () =>
     new ClocktowerError('QUESTION_NOT_ACTIVE', 'Answer questions in order — this one is not next in the queue.', 403),
+  notTheDemon: () => new ClocktowerError('NOT_THE_DEMON', 'Only a living Demon can make a night kill.', 403),
+  gameAlreadyEnded: () => new ClocktowerError('GAME_ALREADY_ENDED', 'This game has already ended.', 403),
 };

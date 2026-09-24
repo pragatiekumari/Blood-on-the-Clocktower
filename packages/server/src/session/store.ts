@@ -1,5 +1,5 @@
 import { customAlphabet } from 'nanoid';
-import type { Alignment, CharacterType, GamePhase, StatusEffects } from '@clocktower/shared';
+import type { Alignment, CharacterType, GameEndReason, GamePhase, StatusEffects, WinningTeam } from '@clocktower/shared';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0/I/1 to avoid confusion
 const generateCode = customAlphabet(CODE_ALPHABET, 5);
@@ -65,6 +65,8 @@ export interface GameSession {
   phaseEndsAt: number | null;
   /** Post-night question queue: Evil players' questions surface first, one at a time, gated on the Storyteller answering. */
   questionQueue: QuestionEntry[];
+  /** Set once the game ends (phase becomes 'ended'), by automatic detection or a Storyteller override. */
+  gameResult: { winner: WinningTeam; reason: GameEndReason } | null;
   createdAt: number;
   lastActivityAt: number;
 }
@@ -93,6 +95,7 @@ export class SessionStore {
       evilChatHistory: [],
       phaseEndsAt: null,
       questionQueue: [],
+      gameResult: null,
       createdAt: Date.now(),
       lastActivityAt: Date.now(),
     };
