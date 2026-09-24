@@ -5,6 +5,7 @@ import type { SessionState } from '../hooks/useSession.js';
 import { GrimoireTable } from '../components/grimoire/GrimoireTable.js';
 import { NightOrderPanel } from '../components/grimoire/NightOrderPanel.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
+import { OpenChatPanel } from '../components/chat/OpenChatPanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
 import { GameEndedBanner } from '../components/shared/GameEndedBanner.js';
 import { SeatingCircle } from '../components/seating/SeatingCircle.js';
@@ -79,6 +80,10 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
 
   function answerQuestion(questionId: string, answer: string) {
     socket?.emit(ClientEvents.StorytellerAnswerQuestion, { questionId, answer });
+  }
+
+  function sendOpenChat(text: string) {
+    socket?.emit(ClientEvents.ChatOpenSend, { text });
   }
 
   function demonKill() {
@@ -292,6 +297,8 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
       </div>
 
       <StorytellerQuestionPanel questions={session.questionQueue} onAnswer={answerQuestion} />
+
+      <OpenChatPanel messages={session.openChatMessages} onSend={sendOpenChat} />
 
       <EvilChatPanel messages={session.chatMessages} onSend={() => {}} readOnly />
 

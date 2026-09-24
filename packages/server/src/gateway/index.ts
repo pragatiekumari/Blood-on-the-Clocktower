@@ -27,7 +27,7 @@ import {
 } from '@clocktower/shared';
 import type { SessionStore, GameSession, PlayerRecord, QuestionEntry } from '../session/store.js';
 import { reorderSeats } from '../session/store.js';
-import { syncEvilRoomMembership, sendEvilHistoryTo, sendEvilMessage } from '../game/chat.js';
+import { syncEvilRoomMembership, sendEvilHistoryTo, sendEvilMessage, sendOpenHistoryTo, sendOpenMessage } from '../game/chat.js';
 import { distributeRoles, resetDistribution, buildPlayerDistributionPayload } from '../game/distribution.js';
 import { askQuestion, answerQuestion, resetQuestionQueue } from '../game/questions.js';
 import { resolveDemonKill } from '../game/demonKill.js';
@@ -40,6 +40,7 @@ import {
   sendToPlayer,
   sendToStoryteller,
   sessionRoom,
+  STORYTELLER_SOCKET_KEY,
 } from '../game/broadcast.js';
 import { castVote, closeVote, confirmExecution, nominate, resetForNewDay, toNominationView } from '../game/rules.js';
 import { ClocktowerError, Errors } from '../errors.js';
@@ -227,6 +228,7 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         const identity = resolveAndBind(store, socket, parsed.token);
         getState(socket).identity = identity;
         socket.join(sessionRoom(identity.session.code));
+        sendOpenHistoryTo(io, socket.id, identity.session);
         if (identity.isStoryteller) {
           io.to(identity.session.code).emit(ServerEvents.StorytellerConnectionStatus, { connected: true });
           broadcastGrimoire(io, identity.session);
@@ -490,6 +492,17 @@ export function registerGatewayHandlers(io: SocketIOServer, store: SessionStore)
         const { text } = ChatSendSchema.parse(raw);
         sendEvilMessage(io, session, player.playerId, player.displayName, text);
         store.touch(session);
+      })
+    );
+
+    socket.on(ClientEvents.ChatOpenSend, (raw: unknown) =>
+      guarded(io, socket, () => {
+        const identity = requireAuth(socket);
+        const { text } = ChatSendSchema.parse(raw);
+        const senderId = identity.isStoryteller ? STORYTELLER_SOCKET_KEY : identity.player!.playerId;
+        const senderName = identity.isStoryteller ? 'Storyteller' : identity.player!.displayName;
+        sendOpenMessage(io, identity.session, senderId, senderName, text);
+        store.touch(identity.session);
       })
     );
 

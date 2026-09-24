@@ -2,7 +2,7 @@ import type { Server as SocketIOServer } from 'socket.io';
 import { ServerEvents } from '@clocktower/shared';
 import type { ChatMessage, GameSession } from '../session/store.js';
 import { pushChatMessage } from '../session/store.js';
-import { evilRoom } from './broadcast.js';
+import { evilRoom, sessionRoom } from './broadcast.js';
 import { Errors } from '../errors.js';
 
 /** (Re)joins every currently-connected Evil player's socket, plus the Storyteller, to the evil chat room. */
@@ -36,11 +36,33 @@ export function sendEvilMessage(
     throw Errors.notInEvilChat();
   }
   const message: ChatMessage = { senderId, senderName, text, ts: Date.now() };
-  pushChatMessage(session, message);
+  pushChatMessage(session.evilChatHistory, message);
   io.to(evilRoom(session.code)).emit(ServerEvents.ChatEvilMessage, message);
   return message;
 }
 
 export function sendEvilHistoryTo(io: SocketIOServer, connectionId: string, session: GameSession): void {
   io.to(connectionId).emit(ServerEvents.ChatEvilHistory, { messages: session.evilChatHistory });
+}
+
+/**
+ * Open Discussion: any connected player or the Storyteller can send/receive.
+ * Everyone is already a member of the session room (joined on auth), so this
+ * simply broadcasts there rather than needing its own room, unlike Evil chat.
+ */
+export function sendOpenMessage(
+  io: SocketIOServer,
+  session: GameSession,
+  senderId: string,
+  senderName: string,
+  text: string
+): ChatMessage {
+  const message: ChatMessage = { senderId, senderName, text, ts: Date.now() };
+  pushChatMessage(session.openChatHistory, message);
+  io.to(sessionRoom(session.code)).emit(ServerEvents.ChatOpenMessage, message);
+  return message;
+}
+
+export function sendOpenHistoryTo(io: SocketIOServer, connectionId: string, session: GameSession): void {
+  io.to(connectionId).emit(ServerEvents.ChatOpenHistory, { messages: session.openChatHistory });
 }

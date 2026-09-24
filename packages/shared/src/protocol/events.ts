@@ -19,6 +19,7 @@ export const ClientEvents = {
   StorytellerDemonKill: 'storyteller:demonKill',
   StorytellerEndGame: 'storyteller:endGame',
   ChatEvilSend: 'chat:evil:send',
+  ChatOpenSend: 'chat:open:send',
 } as const;
 
 /** Server -> Client event names. */
@@ -35,6 +36,8 @@ export const ServerEvents = {
   ExecutionConfirmed: 'execution:confirmed',
   ChatEvilMessage: 'chat:evil:message',
   ChatEvilHistory: 'chat:evil:history',
+  ChatOpenMessage: 'chat:open:message',
+  ChatOpenHistory: 'chat:open:history',
   QuestionQueueUpdate: 'question:queueUpdate',
   StorytellerConnectionStatus: 'storyteller:connectionStatus',
   GameEnded: 'game:ended',

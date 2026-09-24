@@ -6,6 +6,7 @@ import { CharacterCard } from '../components/character/CharacterCard.js';
 import { NominationBar } from '../components/voting/NominationBar.js';
 import { VoteTally } from '../components/voting/VoteTally.js';
 import { EvilChatPanel } from '../components/chat/EvilChatPanel.js';
+import { OpenChatPanel } from '../components/chat/OpenChatPanel.js';
 import { RulesReferencePanel } from '../components/onboarding/RulesReferencePanel.js';
 import { ExecutionBanner } from '../components/shared/ExecutionBanner.js';
 import { GameEndedBanner } from '../components/shared/GameEndedBanner.js';
@@ -32,7 +33,7 @@ interface PlayerGamePageProps {
   selfPlayerId: string;
 }
 
-type Tab = 'character' | 'town' | 'questions' | 'chat';
+type Tab = 'character' | 'town' | 'questions' | 'discussion' | 'chat';
 
 export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePageProps) {
   const [tab, setTab] = useState<Tab>('character');
@@ -58,6 +59,10 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
 
   function sendChat(text: string) {
     socket?.emit(ClientEvents.ChatEvilSend, { text });
+  }
+
+  function sendOpenChat(text: string) {
+    socket?.emit(ClientEvents.ChatOpenSend, { text });
   }
 
   function askQuestion(text: string) {
@@ -104,6 +109,9 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
         </button>
         <button className={tab === 'questions' ? 'active' : ''} onClick={() => setTab('questions')}>
           Questions
+        </button>
+        <button className={tab === 'discussion' ? 'active' : ''} onClick={() => setTab('discussion')}>
+          Open Discussion
         </button>
         {isEvil && (
           <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>
@@ -181,6 +189,10 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
         />
       )}
 
+      {tab === 'discussion' && (
+        <OpenChatPanel messages={session.openChatMessages} selfPlayerId={selfPlayerId} onSend={sendOpenChat} />
+      )}
+
       {tab === 'chat' && isEvil && (
         <EvilChatPanel messages={session.chatMessages} selfPlayerId={selfPlayerId} onSend={sendChat} />
       )}
@@ -194,6 +206,9 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
         </button>
         <button className={tab === 'questions' ? 'active' : ''} onClick={() => setTab('questions')}>
           Q&A
+        </button>
+        <button className={tab === 'discussion' ? 'active' : ''} onClick={() => setTab('discussion')}>
+          Talk
         </button>
         {isEvil && (
           <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>

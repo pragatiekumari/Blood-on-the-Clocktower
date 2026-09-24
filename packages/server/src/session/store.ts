@@ -61,6 +61,8 @@ export interface GameSession {
   nomination: ActiveNomination | null;
   resolvedNominationsToday: { targetId: string; tally: number }[];
   evilChatHistory: ChatMessage[];
+  /** Open Discussion: visible to every player and the Storyteller (unlike Evil chat, which is Evil-only). */
+  openChatHistory: ChatMessage[];
   /** Epoch ms when the current phase's countdown ends, or null if no timer is set. */
   phaseEndsAt: number | null;
   /** Post-night question queue: Evil players' questions surface first, one at a time, gated on the Storyteller answering. */
@@ -93,6 +95,7 @@ export class SessionStore {
       nomination: null,
       resolvedNominationsToday: [],
       evilChatHistory: [],
+      openChatHistory: [],
       phaseEndsAt: null,
       questionQueue: [],
       gameResult: null,
@@ -153,10 +156,11 @@ export class SessionStore {
   }
 }
 
-export function pushChatMessage(session: GameSession, message: ChatMessage): void {
-  session.evilChatHistory.push(message);
-  if (session.evilChatHistory.length > MAX_CHAT_HISTORY) {
-    session.evilChatHistory.splice(0, session.evilChatHistory.length - MAX_CHAT_HISTORY);
+/** Appends `message` to `history` in place, trimming the oldest entries beyond MAX_CHAT_HISTORY. */
+export function pushChatMessage(history: ChatMessage[], message: ChatMessage): void {
+  history.push(message);
+  if (history.length > MAX_CHAT_HISTORY) {
+    history.splice(0, history.length - MAX_CHAT_HISTORY);
   }
 }
 

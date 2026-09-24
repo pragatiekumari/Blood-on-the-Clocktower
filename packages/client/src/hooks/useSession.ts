@@ -38,6 +38,7 @@ export interface SessionState {
   lastExecutedPlayerId: string | null;
   executionEventId: number;
   chatMessages: ChatMessageView[];
+  openChatMessages: ChatMessageView[];
   storytellerConnected: boolean;
   abilityResult: string | null;
   alive: boolean;
@@ -62,6 +63,7 @@ const initialState: SessionState = {
   lastExecutedPlayerId: null,
   executionEventId: 0,
   chatMessages: [],
+  openChatMessages: [],
   storytellerConnected: true,
   abilityResult: null,
   alive: true,
@@ -141,6 +143,12 @@ export function useSession(socket: Socket | null): SessionState {
     const onChatHistory = (payload: { messages: ChatMessageView[] }) => {
       setState((s) => ({ ...s, chatMessages: payload.messages }));
     };
+    const onOpenChatMessage = (payload: ChatMessageView) => {
+      setState((s) => ({ ...s, openChatMessages: [...s.openChatMessages, payload] }));
+    };
+    const onOpenChatHistory = (payload: { messages: ChatMessageView[] }) => {
+      setState((s) => ({ ...s, openChatMessages: payload.messages }));
+    };
     const onStorytellerStatus = (payload: { connected: boolean }) => {
       setState((s) => ({ ...s, storytellerConnected: payload.connected }));
     };
@@ -169,6 +177,8 @@ export function useSession(socket: Socket | null): SessionState {
     socket.on(ServerEvents.ExecutionConfirmed, onExecutionConfirmed);
     socket.on(ServerEvents.ChatEvilMessage, onChatMessage);
     socket.on(ServerEvents.ChatEvilHistory, onChatHistory);
+    socket.on(ServerEvents.ChatOpenMessage, onOpenChatMessage);
+    socket.on(ServerEvents.ChatOpenHistory, onOpenChatHistory);
     socket.on(ServerEvents.StorytellerConnectionStatus, onStorytellerStatus);
     socket.on(ServerEvents.Error, onError);
     socket.on(ServerEvents.QuestionQueueUpdate, onQuestionQueueUpdate);
@@ -188,6 +198,8 @@ export function useSession(socket: Socket | null): SessionState {
       socket.off(ServerEvents.ExecutionConfirmed, onExecutionConfirmed);
       socket.off(ServerEvents.ChatEvilMessage, onChatMessage);
       socket.off(ServerEvents.ChatEvilHistory, onChatHistory);
+      socket.off(ServerEvents.ChatOpenMessage, onOpenChatMessage);
+      socket.off(ServerEvents.ChatOpenHistory, onOpenChatHistory);
       socket.off(ServerEvents.StorytellerConnectionStatus, onStorytellerStatus);
       socket.off(ServerEvents.Error, onError);
       socket.off(ServerEvents.QuestionQueueUpdate, onQuestionQueueUpdate);
