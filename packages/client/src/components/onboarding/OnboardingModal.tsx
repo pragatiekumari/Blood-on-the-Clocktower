@@ -32,8 +32,8 @@ export function OnboardingModal({ onClose, alignment }: OnboardingModalProps) {
         padding: 16,
       }}
     >
-      <div className="panel" style={{ maxWidth: 520 }}>
-        <div className="tab-bar" style={{ marginBottom: 20 }}>
+      <div className="panel modal-panel" style={{ maxWidth: 520 }}>
+        <div className="step-indicator" style={{ marginBottom: 20 }}>
           {STEPS.map((s, i) => (
             <span
               key={s}
@@ -86,20 +86,23 @@ export function OnboardingModal({ onClose, alignment }: OnboardingModalProps) {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, gap: 12 }}>
           <button
-            className="btn"
+            className="btn btn-inline"
             disabled={isFirst}
             onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
           >
             Back
           </button>
           {isLast ? (
-            <button className="btn btn-primary" onClick={onClose}>
+            <button className="btn btn-inline btn-primary" onClick={onClose}>
               Let's Play
             </button>
           ) : (
-            <button className="btn btn-primary" onClick={() => setStepIndex((i) => Math.min(STEPS.length - 1, i + 1))}>
+            <button
+              className="btn btn-inline btn-primary"
+              onClick={() => setStepIndex((i) => Math.min(STEPS.length - 1, i + 1))}
+            >
               Next
             </button>
           )}

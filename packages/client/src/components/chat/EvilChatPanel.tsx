@@ -38,6 +38,7 @@ export function EvilChatPanel({ messages, selfPlayerId, onSend, readOnly }: Evil
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             className="input"
+            style={{ flex: 1, minWidth: 0 }}
             value={text}
             placeholder="Message your fellow evil players…"
             onChange={(e) => setText(e.target.value)}
@@ -49,7 +50,7 @@ export function EvilChatPanel({ messages, selfPlayerId, onSend, readOnly }: Evil
             }}
           />
           <button
-            className="btn btn-danger"
+            className="btn btn-inline btn-danger"
             disabled={!text.trim()}
             onClick={() => {
               onSend(text.trim());

@@ -23,7 +23,7 @@ export function RulesReferencePanel({ onClose, characterName, ability }: RulesRe
         padding: 16,
       }}
     >
-      <div className="panel" style={{ maxWidth: 480 }}>
+      <div className="panel modal-panel" style={{ maxWidth: 480 }}>
         <h2>Quick Reference</h2>
         <ul style={{ lineHeight: 1.7, paddingLeft: 20 }}>
           {CORE_RULES.map((rule) => (

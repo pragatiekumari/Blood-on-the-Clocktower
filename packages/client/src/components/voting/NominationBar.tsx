@@ -30,7 +30,7 @@ export function NominationBar({ players, selfPlayerId, canNominate, onNominate }
             Nominate <strong className="alignment-evil">{targetName}</strong> for execution? This is public and
             can't be undone.
           </p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="mobile-stack" style={{ display: 'flex', gap: 8 }}>
             <button
               className="btn btn-danger"
               onClick={() => {
@@ -46,7 +46,7 @@ export function NominationBar({ players, selfPlayerId, canNominate, onNominate }
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="mobile-stack" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <select
             className="input"
             style={{ flex: 1 }}

@@ -31,7 +31,7 @@ export function VoteTally({ nomination, players, selfPlayerId, canVote, onVote }
           {nomination.pendingExecution ? 'This nomination met the threshold.' : 'This nomination did not pass.'}
         </p>
       ) : (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="mobile-stack" style={{ display: 'flex', gap: 8 }}>
           <button
             className="btn btn-primary"
             disabled={!canVote || myVote?.voting === true}

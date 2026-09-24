@@ -64,6 +64,12 @@ button {
   padding: 24px 16px 96px;
 }
 
+.hero-title {
+  font-size: clamp(26px, 8vw, 40px);
+  margin: 0;
+  line-height: 1.15;
+}
+
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
@@ -198,6 +204,13 @@ button {
   z-index: 1000;
 }
 
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .tab-bar {
   display: flex;
   gap: 8px;
@@ -219,12 +232,107 @@ button {
   border-bottom-color: var(--accent-gold);
 }
 
+.step-indicator {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+}
+
+.step-indicator span {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.step-indicator span.active {
+  color: var(--accent-gold-bright);
+}
+
+.modal-panel {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   .app-shell {
-    padding: 12px 10px 120px;
+    padding: 12px 10px calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .panel {
+    padding: 16px;
+    border-radius: var(--radius-md);
+  }
+
+  .panel + .panel {
+    margin-top: 12px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+
+  h3 {
+    font-size: 16px;
+  }
+
+  /* Buttons get bigger tap targets on mobile. Full-width by default, but
+     buttons inside a row meant to stay inline (e.g. chat send) opt out via
+     .btn-inline. */
+  .btn {
+    width: 100%;
+    padding: 13px 16px;
+    font-size: 16px;
+  }
+
+  .btn-inline {
+    width: auto;
+  }
+
+  /* Title + action header rows stack on mobile; the action becomes full-width
+     and sits below the title instead of squeezing beside it. */
+  .header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-row .btn-inline {
+    width: 100%;
+  }
+
+  .input {
+    padding: 13px 14px;
+    font-size: 16px;
+  }
+
+  /* Action rows that mix a select/input with a button stack vertically on
+     mobile instead of squeezing side by side. */
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+
+  .mobile-stack > .btn {
+    width: 100%;
+  }
+
+  /* Bigger checkbox tap targets for the Storyteller's status toggles. */
+  .grimoire-cards input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
   }
 
   .grimoire-table {
+    display: none;
+  }
+
+  /* Navigation lives in the fixed bottom tab bar on mobile; the inline
+     top tab bar would otherwise duplicate it and waste vertical space. */
+  .tab-bar {
     display: none;
   }
 
@@ -236,12 +344,24 @@ button {
     display: flex;
     background: var(--bg-panel);
     border-top: 1px solid var(--border-subtle);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     z-index: 100;
   }
 
   .bottom-tab-bar button {
     flex: 1;
     padding: 14px 0;
+    font-size: 13px;
+  }
+
+  .bottom-tab-bar button.active {
+    color: var(--accent-gold-bright);
+    background: var(--bg-panel-raised);
+  }
+
+  /* Keep transient banners/toasts clear of the fixed bottom tab bar. */
+  .error-toast {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   }
 }
 

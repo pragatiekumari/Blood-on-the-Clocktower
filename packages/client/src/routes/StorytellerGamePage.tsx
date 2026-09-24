@@ -61,14 +61,14 @@ export function StorytellerGamePage({ socket, session }: StorytellerGamePageProp
     <div className="app-shell">
       <ExecutionBanner playerId={session.lastExecutedPlayerId} eventId={session.executionEventId} displayName={executedName} />
 
-      <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="panel header-row">
         <div>
           <h1 style={{ margin: 0 }}>Storyteller</h1>
           <p className="muted" style={{ margin: 0 }}>
             {session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={togglePhase}>
+        <button className="btn btn-inline btn-primary" onClick={togglePhase}>
           Switch to {session.phase === 'day' ? 'Night' : 'Day'}
         </button>
       </div>

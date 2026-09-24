@@ -68,7 +68,7 @@ export function HomePage() {
   return (
     <div className="app-shell">
       <header style={{ textAlign: 'center', marginBottom: 32 }}>
-        <h1 style={{ fontSize: 40, margin: 0 }}>🕛 Blood on the Clocktower</h1>
+        <h1 className="hero-title">🕛 Blood on the Clocktower</h1>
         <p className="muted">A game of murder, mystery, and deduction in Ravenswood Bluff.</p>
       </header>
 

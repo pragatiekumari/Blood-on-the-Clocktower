@@ -48,14 +48,14 @@ export function PlayerGamePage({ socket, session, selfPlayerId }: PlayerGamePage
     <div className="app-shell">
       <ExecutionBanner playerId={session.lastExecutedPlayerId} eventId={session.executionEventId} displayName={executedName} />
 
-      <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>
             {session.phase === 'day' ? `Day ${session.dayNumber}` : `Night ${session.dayNumber}`}
           </h1>
           {!session.alive && <p className="alignment-evil" style={{ margin: 0 }}>You are dead. You may still vote once.</p>}
         </div>
-        <button className="btn" onClick={() => setShowRules(true)}>
+        <button className="btn btn-inline" onClick={() => setShowRules(true)}>
           Rules
         </button>
       </div>
